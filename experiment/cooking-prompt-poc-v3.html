@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="烹饪小游戏第三版概念验证：厨具优先流程、已处理食材与感官分数。">
+  <title>料理提示词生成器 V3</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23333'/%3E%3Cpath d='M12 36h40a20 20 0 0 1-40 0Z' fill='%23fff'/%3E%3C/svg%3E">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; color: #222; background: #f4f4f4; font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 940px; margin: auto; }
+    h1 { margin: 0 0 4px; font-size: 1.6rem; }
+    .intro { margin: 0 0 20px; color: #666; }
+    section { margin-bottom: 16px; padding: 18px; border: 1px solid #ddd; border-radius: 8px; background: #fff; }
+    h2 { margin: 0 0 14px; font-size: 1rem; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .wide { grid-column: 1 / -1; }
+    label { display: block; margin-bottom: 5px; color: #555; font-size: .875rem; }
+    select, button, textarea { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid #bbb; border-radius: 5px; background: #fff; font: inherit; }
+    select:disabled { color: #888; background: #eee; }
+    button { margin-top: 14px; color: #fff; background: #333; cursor: pointer; }
+    button:hover { background: #111; }
+    .secondary { color: #333; background: #eee; }
+    .secondary:hover { background: #ddd; }
+    .draft { display: grid; gap: 6px; margin-top: 12px; }
+    .draft-step { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px dashed #bbb; border-radius: 5px; font-size: .9rem; }
+    .draft-step button { width: auto; min-height: 28px; margin: 0; padding: 1px 9px; color: #555; background: #eee; }
+    .progress-box { padding: 12px; border: 1px solid #ddd; border-radius: 5px; background: #fafafa; }
+    .progress-row { display: grid; grid-template-columns: 1fr 170px; gap: 12px; align-items: end; }
+    .state-preview { margin: 10px 0 0; color: #555; font-size: .9rem; }
+    .badge { display: inline-block; margin-right: 6px; padding: 2px 7px; border-radius: 999px; color: #444; background: #e8e8e8; font-size: .78rem; }
+    .items { display: grid; gap: 8px; }
+    .item { display: flex; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+    .item small { display: block; margin-top: 3px; color: #666; }
+    .remove { width: auto; min-height: 30px; margin: 0; padding: 2px 10px; color: #555; background: #eee; }
+    .scores { margin: 12px 0 0; color: #555; font-size: .9rem; }
+    .sensory { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; }
+    .sense { display: grid; grid-template-columns: 70px 1fr 24px; gap: 8px; align-items: center; font-size: .84rem; }
+    .sense-bar { height: 7px; border-radius: 8px; background: #e8e8e8; overflow: hidden; }
+    .sense-bar i { display: block; height: 100%; border-radius: inherit; background: #555; }
+    .balance { margin-top: 14px; padding: 10px; border-radius: 5px; background: #f4f4f4; color: #555; font-size: .88rem; }
+    textarea { min-height: 330px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: .8rem; }
+    .copy { width: auto; padding-inline: 18px; }
+    .empty { color: #888; }
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+      .grid, .progress-row, .sensory { grid-template-columns: 1fr; }
+      .wide { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>料理提示词生成器 V3</h1>
+    <p class="intro">先选择厨具与操作，再投入基础食材或已处理食材。</p>
+
+    <section>
+      <h2>厨具处理</h2>
+      <div class="grid">
+        <div><label for="tool">厨具</label><select id="tool"></select></div>
+        <div><label for="operation">操作</label><select id="operation"></select></div>
+        <div id="progressBox" class="progress-box wide">
+          <div class="progress-row">
+            <div><label for="progress">加工进度</label><select id="progress"></select></div>
+            <div><span class="badge" id="profileBadge"></span><span class="badge" id="methodBadge"></span></div>
+          </div>
+          <p class="state-preview" id="statePreview"></p>
+        </div>
+        <div><label for="ingredient">投入食材</label><select id="ingredient"></select></div>
+        <div><label for="role">食材作用</label><select id="role" disabled></select></div>
+      </div>
+      <button id="addInput" class="secondary" type="button">加入本次处理</button>
+      <div id="batchInputs" class="draft"></div>
+      <button id="process" type="button">执行处理</button>
+    </section>
+
+    <section>
+      <h2>已处理食材</h2>
+      <div id="items" class="items"></div>
+      <div id="scores" class="scores"></div>
+    </section>
+
+    <section>
+      <h2>感官画像</h2>
+      <div id="sensory" class="sensory"></div>
+      <div id="balance" class="balance"></div>
+    </section>
+
+    <section>
+      <h2>最终提示词</h2>
+      <textarea id="prompt" readonly></textarea>
+      <button id="copy" class="copy" type="button">复制提示词</button>
+    </section>
+  </main>
+
+  <script>
+    /* ========================================================================
+       1. 本地化（Localization）
+       界面提示和通用名称集中在这里。增加语言时可复制 zh-CN 并替换文案；
+       食材名称与烹饪描述属于游戏内容数据，保留在下一节。
+       ======================================================================== */
+    const LOCALE = 'zh-CN';
+    const I18N = {
+      'zh-CN': {
+        roles: { fat:'烹饪油脂', liquid:'液体', seasoning:'调味', spice:'香辛料', aromatic:'芳香配料', main:'主体食材' },
+        senses: { salty:'咸味', sweet:'甜味', sour:'酸味', umami:'鲜味', spicy:'辣味', pungent:'辛味', aromatic:'芳香', roasted:'焦香', smoky:'烟火味', bloody:'血味感知', moist:'湿润', dry:'干燥', crisp:'酥脆', rich:'丰润' },
+        emptyBatch:'请加入本次处理所需的食材、油脂与调味',
+        emptyProcessed:'尚未产生已处理食材',
+        freeCuisine:'自由融合',
+        instantOperation:'即时操作',
+        resolveByIngredient:'描述将按每项食材的大类与进度分别生成',
+        copied:'已复制', copyPrompt:'复制提示词'
+      }
+    };
+    const TEXT = I18N[LOCALE];
+
+    /* ========================================================================
+       2. 游戏数据（Data）
+       这里仅描述“有什么”：食材类别、操作、厨具、进度文本、菜系与感官基础值。
+       下方逻辑层读取这些数据进行计算，数据本身不操作页面。
+       ======================================================================== */
+    const profiles = {
+      red_meat: '红肉', poultry: '禽肉', fish: '鱼肉', shellfish: '贝类与软体海鲜', egg: '蛋',
+      firm_vegetable: '结实蔬菜', leafy_vegetable: '叶菜', grain_noodle: '谷物与面食',
+      legume: '豆类', dough: '面团', dairy: '乳制品', fruit: '水果', aromatic: '葱蒜与香草',
+      spice: '香辛料', nut_seed: '坚果与种子', liquid: '液体', fat: '油脂', seasoning: '调味料'
+    };
+
+    const ingredientGroups = [
+      ['红肉','red_meat','牛肉','猪肉','羊肉'],
+      ['禽肉','poultry','鸡肉','鸡腿','鸡翅'],
+      ['鱼类','fish','白肉鱼','三文鱼'], ['其他海鲜','shellfish','虾','鱿鱼'], ['蛋','egg','鸡蛋'],
+      ['豆类蛋白','legume','豆腐','鹰嘴豆','扁豆','黑豆'],
+      ['主食谷物','grain_noodle','米饭','小麦面条','意面','米粉'],
+      ['面团','dough','面包','饼皮','披萨面团','玉米饼'],
+      ['结实蔬菜','firm_vegetable','土豆','胡萝卜','红薯','洋葱','番茄','甜椒','辣椒','茄子','西兰花','菜花','黄瓜','蘑菇','玉米'],
+      ['叶菜','leafy_vegetable','菠菜','生菜','白菜','卷心菜'],
+      ['芳香食材','aromatic','大蒜','葱','姜','香菜','欧芹','罗勒','薄荷'],
+      ['水果','fruit','柠檬','青柠','苹果','香蕉','牛油果'],
+      ['乳制品','dairy','牛奶','奶油','黄油','奶酪','酸奶'],
+      ['坚果种子','nut_seed','花生','芝麻','腰果'], ['基础液体','liquid','水','高汤','椰奶'],
+      ['基础油脂','fat','植物油','橄榄油'], ['调味料','seasoning','盐','糖','酱油','醋','辣椒酱','番茄酱'],
+      ['香辛料','spice','黑胡椒','孜然','辣椒粉','咖喱香料','肉桂']
+    ];
+    const ingredients = ingredientGroups.flatMap(([group, profile, ...names]) => names.map(name => ({name, group, profile})));
+    const allProfiles = Object.keys(profiles);
+    const solidProfiles = allProfiles.filter(x => !['liquid','fat','seasoning'].includes(x));
+    const cookableProfiles = allProfiles.filter(x => !['spice','fat'].includes(x));
+    const cuttableProfiles = solidProfiles.filter(x => !['spice','grain_noodle'].includes(x));
+
+    // 每种渐进式操作都有五档默认文本；overrides 按食材烹饪大类覆盖默认文本。
+    const progressModels = {
+      boiled: {
+        axis: '吸水、熟化与结构变化',
+        default: ['生鲜，保持原始结构','表层开始受热，内部仍接近生鲜状态','已经煮熟，整体结构完整','充分软化，结构开始松散','经过长时间煮制，结构明显分解'],
+        overrides: {
+          red_meat: ['生肉状态，内部颜色鲜明且纤维紧实','外层变色，内部仍保持生肉质感','完全熟透，肉纤维完整','肉质柔软，纤维容易分离','肉纤维松散，部分碎裂'],
+          poultry: ['生禽肉，肉质略显半透明','外层变白，内部仍呈生肉质感','完全熟透，纤维完整且保有水分','肉质柔软，纤维容易分离','肉纤维松散，部分碎裂'],
+          fish: ['生鱼肉，表面湿润且略透明','外层开始变得不透明，中心仍接近生鲜','鱼肉熟透，保持完整分层','鱼肉柔软，层片容易分开','鱼肉明显松散，部分碎开'],
+          shellfish: ['生鲜，颜色浅且组织柔软','颜色开始变化，内部仍接近生鲜','已经熟透，质地紧实有弹性','继续受热后收缩，弹性减弱','明显收缩，质地偏硬或松散'],
+          egg: ['蛋白与蛋黄均保持液态','蛋白边缘开始凝固，蛋黄仍为液态','蛋白完全凝固，蛋黄形成柔软固态','蛋白紧实，蛋黄完全凝固','整体质地紧实偏干'],
+          firm_vegetable: ['生鲜，颜色与结构完整','略微受热，仍保持明显脆度','已经熟透，颜色鲜明且保有结构','明显软化，颜色开始变化','结构松散，容易压碎'],
+          leafy_vegetable: ['叶片生鲜舒展','叶片开始萎蔫，颜色仍鲜明','叶片熟软，保留一定形状','叶片明显软塌并释放水分','叶片深度软化，结构细碎'],
+          grain_noodle: ['干硬或生面状态','开始吸水，中心仍硬','已经煮熟，保持弹性','质地偏软，弹性减弱','充分吸水，质地软烂'],
+          legume: ['质地坚实，保持原始形态','开始吸水，中心仍偏硬','已经熟透，内部柔软','充分软化，容易压碎','表皮开裂，部分形成泥状']
+        }
+      },
+      simmered: {
+        axis: '缓慢熟化、吸收汤汁与结构松散',
+        default: ['保持生鲜状态，尚未开始慢煮','开始受热并接触汤汁','已经熟透并吸收部分汤汁','充分软化，味汁渗入且结构开始松散','长时间慢煮，主体接近融入汤汁'],
+        overrides: {
+          red_meat: ['生肉状态，纤维紧实','表面受热，内部仍接近生鲜','肉已熟透，纤维仍完整','肉质软烂，纤维容易分离','肉质极为松散，部分融入汤汁'],
+          legume: ['干硬或生鲜状态','开始吸水膨胀','熟透且保持颗粒形状','柔软，部分颗粒开裂','大量颗粒分解，汤汁变得浓稠']
+        }
+      },
+      braised: {
+        axis: '熟化、软化与吸收浓郁汤汁',
+        default: ['原料保持生鲜状态','表面受热，开始接触调味液','已经熟透，外层附着汤汁','充分软化，颜色加深并吸收汤汁','结构非常松散，浓稠汤汁深入主体'],
+        overrides: {
+          red_meat: ['生肉状态，纤维紧实','表面开始变色，内部仍接近生鲜','肉已熟透，表面附着汤汁','肉质软烂，纤维容易分离','肉质极为松散，浓稠汤汁深入纤维'],
+          firm_vegetable: ['结构生硬，颜色自然','外层开始受热并沾染汤汁','熟透且保持块状结构','充分软化，颜色加深','结构开始崩解，表面覆盖浓稠汤汁']
+        }
+      },
+      poached: {
+        axis: '温和受热与内部凝固',
+        default: ['保持生鲜状态','外层轻微熟化，中心仍接近生鲜','温和熟透，质地柔嫩','进一步凝固，质地较紧实','长时间受热，质地明显变紧或变散'],
+        overrides: {
+          egg: ['蛋白与蛋黄均为液态','蛋白部分凝固，蛋黄保持流动','蛋白柔嫩凝固，蛋黄保持浓稠流动','蛋白完全凝固，蛋黄中心柔软','蛋白紧实，蛋黄完全凝固'],
+          fish: ['鱼肉生鲜且略透明','外层转为不透明，中心仍接近生鲜','鱼肉温和熟透，保持柔嫩分层','鱼肉完全凝固，层片容易分开','鱼肉偏紧实，边缘开始碎开']
+        }
+      },
+      steamed: {
+        axis: '湿热熟化、软化与含水变化',
+        default: ['保持生鲜状态','表层受热，内部仍接近生鲜','已经蒸熟，质地湿润且结构完整','充分蒸软，结构开始松弛','长时间蒸制，质地非常柔软或偏湿'],
+        overrides: {
+          fish: ['鱼肉生鲜且略透明','表层转为不透明，中心仍接近生鲜','鱼肉蒸熟，柔嫩湿润且分层完整','鱼肉非常柔软，层片容易分开','鱼肉结构松散，水分明显流失'],
+          firm_vegetable: ['生鲜且结构坚实','略微软化，仍保持脆度','蒸熟且保有形状与鲜明颜色','质地柔软，颜色开始变化','结构松散，容易压碎'],
+          dough: ['面团保持生坯状态','外层开始定型，内部仍黏软','完全蒸熟，内部柔软且结构稳定','含水充分，质地更柔软','过度吸收蒸汽，表面湿软且结构松弛']
+        }
+      },
+      pan_fried: {
+        axis: '表面定型、褐化与内部受热',
+        default: ['保持生鲜状态，表面没有煎制痕迹','表面开始定型并轻微上色','表面均匀褐化，内部已经熟化','表面颜色较深，内部进一步失水','表面深度褐化或焦黑，整体明显失水'],
+        overrides: {
+          red_meat: ['生肉状态，表面湿润','表面轻微上色，内部仍保持明显生肉状态','表面形成褐色煎痕，内部已经熟化','外层深度褐化，内部汁水减少','表面焦黑，肉质明显紧缩偏干'],
+          egg: ['蛋白与蛋黄均为液态','蛋白边缘凝固，蛋黄仍流动','蛋白完全凝固并轻微焦边，蛋黄柔软','蛋白焦边明显，蛋黄基本凝固','蛋白深度焦化，蛋黄完全凝固偏干'],
+          firm_vegetable: ['生鲜且表面湿润','表面轻微上色，内部仍脆','表面褐化，内部熟而保有结构','焦边明显，内部柔软','表面焦黑，内部明显失水']
+        }
+      },
+      stir_fried: {
+        axis: '快速受热、失水与焦边形成',
+        default: ['保持生鲜状态','表面快速受热，仍保留明显生鲜质感','均匀熟化，颜色鲜明并保有结构','质地进一步软化，出现明显焦边','高度失水，边缘深色焦化'],
+        overrides: {
+          poultry: ['生禽肉，质地略显半透明','外层变白，内部仍接近生鲜','完全熟透，表面上色且保有汁水','表面焦边明显，肉质趋于紧实','深度焦化，肉质明显偏干'],
+          leafy_vegetable: ['叶片生鲜舒展','叶片开始萎蔫，颜色仍鲜亮','叶片熟软且颜色鲜明','叶片明显软塌，边缘略干','叶片深度萎缩，边缘焦化']
+        }
+      },
+      roasted: {
+        axis: '干热熟化、表面褐化与水分减少',
+        default: ['保持生鲜状态','外层开始干燥并轻微上色','内部熟化，表面呈均匀金褐色','表面颜色加深，内部更加柔软或紧实','表面深度焦化，整体明显失水'],
+        overrides: {
+          firm_vegetable: ['生鲜且结构坚实','表面开始干燥，内部仍脆硬','边缘金黄，内部熟软且保持形状','外层褐化明显，内部充分柔软','边缘焦黑，内部失水并开始塌缩'],
+          poultry: ['生禽肉，表面湿润','表皮开始收紧并轻微上色','表皮金黄，内部熟透且保有汁水','表皮深色酥化，内部汁水减少','表皮焦黑，肉质紧缩偏干']
+        }
+      },
+      baked: {
+        axis: '定型、膨胀、褐化与失水',
+        default: ['保持未烘焙状态','外层开始定型，内部仍柔软湿润','整体定型并均匀熟化','表面深度上色，内部进一步失水','表面焦化，质地明显干硬'],
+        overrides: {
+          dough: ['面团保持生坯状态','外层开始定型，内部仍黏软','面团完全膨胀并烤熟，表面金黄','外壳颜色较深，内部水分减少','外壳焦黑，内部明显干硬']
+        }
+      },
+      grilled: {
+        axis: '直接火力形成烤痕、焦化与失水',
+        default: ['保持生鲜状态','表面出现浅色烤痕，内部仍接近生鲜','烤痕清晰，内部已经熟化','焦边明显，内部水分减少','表面深度焦黑，整体明显失水'],
+        overrides: {
+          red_meat: ['生肉状态，表面湿润','出现浅色烤痕，内部仍保持生肉状态','烤痕清晰，内部已经熟化并保有汁水','焦边明显，肉质更加紧实','表面焦黑，肉质紧缩偏干'],
+          firm_vegetable: ['生鲜且结构坚实','出现浅色烤痕，内部仍脆','烤痕清晰，内部熟而保有结构','焦边明显，内部充分柔软','表面焦黑，内部明显失水']
+        }
+      },
+      deep_fried: {
+        axis: '外壳形成、上色与脱水',
+        default: ['保持生鲜或生坯状态','外层开始定型，颜色仍浅','外壳金黄酥脆，内部已经熟化','外壳颜色较深，整体进一步脱水','外壳深褐或焦黑，内部明显偏干'],
+        overrides: {
+          poultry: ['生禽肉，表面湿润','外层开始定型，内部仍接近生鲜','外壳金黄酥脆，内部熟透且保有汁水','外壳深金色，内部汁水减少','外壳深褐，肉质明显偏干'],
+          firm_vegetable: ['生鲜且结构坚实','外层开始定型，内部仍脆硬','外层金黄酥脆，内部熟软','外层颜色较深，内部水分减少','外层深褐，整体干硬']
+        }
+      },
+      toasted: {
+        axis: '表面干燥、香气释放与褐化',
+        default: ['保持原始状态','表面轻微干燥，香气开始释放','表面均匀金黄并呈现烘香质感','颜色加深，质地更干脆','深度褐化或焦黑，产生明显焦化质感']
+      },
+      caramelized: {
+        axis: '糖分褐化、颜色加深与黏稠变化',
+        default: ['保持原始颜色与质地','边缘开始泛黄并释放甜香','均匀呈现金褐色，质地柔软黏润','颜色较深，表面形成浓厚光泽','深褐接近焦化，质地浓稠或偏硬']
+      },
+      griddled: {
+        axis: '接触加热、定型与表面上色',
+        default: ['保持未加热状态','接触面开始定型并轻微上色','两面定型并呈现金黄色','表面颜色加深，内部水分减少','接触面焦黑，整体明显偏干']
+      }
+    };
+
+    // 操作定义负责连接“厨具能做什么”和“哪些食材大类可以接受该操作”。
+    const operations = {
+      halved:{label:'对半',kind:'instant',profiles:cuttableProfiles,appearance:'切成大小相近的两半'},
+      sliced_thin:{label:'切薄片',kind:'instant',profiles:cuttableProfiles,appearance:'切成均匀薄片'},
+      sliced_thick:{label:'切厚片',kind:'instant',profiles:cuttableProfiles,appearance:'切成均匀厚片'},
+      strips:{label:'切丝 / 条',kind:'instant',profiles:cuttableProfiles,appearance:'切成细长均匀的丝或条'},
+      diced_small:{label:'切小丁',kind:'instant',profiles:cuttableProfiles,appearance:'切成均匀小丁'},
+      diced_large:{label:'切大丁',kind:'instant',profiles:cuttableProfiles,appearance:'切成均匀大丁'},
+      chunks:{label:'切块',kind:'instant',profiles:cuttableProfiles,appearance:'切成大小相近的块'},
+      minced:{label:'剁碎',kind:'instant',profiles:cuttableProfiles,appearance:'细密剁碎'},
+      grated:{label:'擦碎',kind:'instant',profiles:['firm_vegetable','dairy','fruit'],appearance:'擦成细碎均匀的丝屑'},
+      flattened:{label:'压扁',kind:'instant',profiles:['dough'],appearance:'压成均匀扁平形状'},
+      rolled:{label:'擀薄',kind:'instant',profiles:['dough'],appearance:'擀成薄而均匀的面片'},
+      crushed:{label:'压碎',kind:'instant',profiles:['spice','nut_seed','aromatic','firm_vegetable'],appearance:'压成粗细不一的碎粒'},
+      ground:{label:'研磨',kind:'instant',profiles:['spice','nut_seed'],appearance:'研磨成细颗粒或粉末'},
+      paste:{label:'捣成泥',kind:'instant',profiles:['spice','nut_seed','aromatic','firm_vegetable','fruit'],appearance:'捣成具有细腻质感的泥或酱'},
+      mixed:{label:'混合',kind:'instant',profiles:allProfiles,appearance:'与其他成分均匀混合'},
+      whipped:{label:'打发',kind:'instant',profiles:['egg','dairy'],appearance:'打发至蓬松并充满细小气泡'},
+      seasoned:{label:'调味',kind:'instant',profiles:allProfiles,appearance:'表面均匀附着调味料'},
+      boiled:{label:'水煮',kind:'progressive',profiles:cookableProfiles}, simmered:{label:'慢煮',kind:'progressive',profiles:cookableProfiles},
+      braised:{label:'炖 / 焖',kind:'progressive',profiles:['red_meat','poultry','fish','firm_vegetable','legume']},
+      poached:{label:'汆 / 低温水煮',kind:'progressive',profiles:['red_meat','poultry','fish','shellfish','egg','firm_vegetable']},
+      steamed:{label:'蒸',kind:'progressive',profiles:cookableProfiles},
+      pan_fried:{label:'煎',kind:'progressive',profiles:['red_meat','poultry','fish','shellfish','egg','firm_vegetable','leafy_vegetable','legume','dough']},
+      caramelized:{label:'焦糖化',kind:'progressive',profiles:['firm_vegetable','fruit','seasoning']},
+      toasted:{label:'烘香',kind:'progressive',profiles:['grain_noodle','dough','spice','nut_seed','aromatic']},
+      stir_fried:{label:'炒',kind:'progressive',profiles:['red_meat','poultry','fish','shellfish','egg','firm_vegetable','leafy_vegetable','grain_noodle','legume','aromatic']},
+      roasted:{label:'烤制',kind:'progressive',profiles:['red_meat','poultry','fish','firm_vegetable','fruit','nut_seed']},
+      baked:{label:'烘焙',kind:'progressive',profiles:['dough','egg','dairy','fruit','firm_vegetable']},
+      grilled:{label:'烧烤 / 炙烤',kind:'progressive',profiles:['red_meat','poultry','fish','shellfish','firm_vegetable','fruit','dough']},
+      deep_fried:{label:'油炸',kind:'progressive',profiles:['red_meat','poultry','fish','shellfish','egg','firm_vegetable','grain_noodle','legume','dough']},
+      drained:{label:'沥干',kind:'instant',profiles:['red_meat','poultry','fish','shellfish','egg','firm_vegetable','leafy_vegetable','grain_noodle','legume'],appearance:'沥去表面和缝隙中的多余水分'},
+      skewered:{label:'穿串',kind:'instant',profiles:['red_meat','poultry','fish','shellfish','firm_vegetable','fruit','dough'],appearance:'切配后整齐穿在串签上'},
+      shaped:{label:'压制成型',kind:'instant',profiles:['dough','grain_noodle','legume'],appearance:'压制成大小一致的扁平形状'},
+      griddled:{label:'烙制',kind:'progressive',profiles:['dough','grain_noodle','legume']},
+      oiled:{label:'刷油',kind:'instant',profiles:solidProfiles,appearance:'表面覆盖薄而均匀的油层'},
+      sauced:{label:'刷酱',kind:'instant',profiles:solidProfiles,appearance:'表面均匀涂覆一层酱汁'},
+      glazed:{label:'挂汁',kind:'instant',profiles:solidProfiles,appearance:'表面包裹光亮而均匀的浓稠汁液'}
+    };
+
+    const tools = [
+      {name:'菜刀 + 砧板',ops:['halved','sliced_thin','sliced_thick','strips','diced_small','diced_large','chunks','minced'],cuisine:{中餐:1,日料:1,法餐:1}},
+      {name:'擦丝器',ops:['grated'],cuisine:{欧洲菜:1,南亚菜:1,墨西哥菜:1}},
+      {name:'擀面杖',ops:['flattened','rolled'],cuisine:{中餐:1,意大利菜:1,南亚菜:1,中东菜:1}},
+      {name:'研钵',ops:['crushed','ground','paste'],cuisine:{东南亚菜:2,南亚菜:1,中东菜:1,拉美菜:1}},
+      {name:'搅拌碗',ops:['mixed','whipped','seasoned'],cuisine:{}},
+      {name:'平底锅',ops:['pan_fried','caramelized','toasted'],cuisine:{}},
+      {name:'炒锅',ops:['stir_fried','toasted'],cuisine:{中餐:2,东南亚菜:1}},
+      {name:'汤锅',ops:['boiled','simmered','braised','poached'],cuisine:{}},
+      {name:'蒸锅',ops:['steamed'],cuisine:{中餐:1,东亚菜:1,东南亚菜:1}},
+      {name:'烤箱',ops:['roasted','baked'],cuisine:{欧洲菜:1,北美菜:1,中东菜:1}},
+      {name:'烤架',ops:['grilled'],cuisine:{中东菜:1,美洲菜:1,东亚菜:1}},
+      {name:'油炸锅',ops:['deep_fried'],cuisine:{}}, {name:'滤网',ops:['drained'],cuisine:{}},
+      {name:'串签',ops:['skewered'],cuisine:{中东菜:1,东亚菜:1,南亚菜:1}},
+      {name:'压模 / 饼铛',ops:['shaped','griddled'],cuisine:{拉美菜:1,南亚菜:1,欧洲菜:1}},
+      {name:'刷子',ops:['oiled','sauced','glazed'],cuisine:{烧烤菜:1}}
+    ];
+
+    const roles = ['主食底','蛋白质主体','蔬菜','酱汁','配料','点缀'];
+    const ingredientCuisine = {
+      米饭:{东亚菜:1,南亚菜:1,东南亚菜:1,拉美菜:1}, 酱油:{中餐:2,日料:2,韩餐:2}, 姜:{中餐:1,日料:1,南亚菜:1,东南亚菜:1},
+      意面:{意大利菜:3}, 披萨面团:{意大利菜:3}, 橄榄油:{地中海菜:2,意大利菜:1}, 孜然:{中东菜:2,南亚菜:2,拉美菜:1},
+      咖喱香料:{南亚菜:3,东南亚菜:1}, 椰奶:{东南亚菜:2,南亚菜:1}, 玉米饼:{墨西哥菜:3}, 青柠:{墨西哥菜:1,东南亚菜:1},
+      豆腐:{中餐:1,日料:1,东亚菜:1}, 芝麻:{东亚菜:1,中东菜:1}, 酸奶:{南亚菜:1,中东菜:1}, 罗勒:{意大利菜:1,地中海菜:1}
+    };
+
+    const senseLabels = TEXT.senses;
+    // 感官基础值来自食材大类，具体食材可以在 ingredientSensory 中覆盖同名字段。
+    const profileSensory = {
+      red_meat:{umami:2,bloody:4,moist:2,rich:2}, poultry:{umami:2,bloody:3,moist:2,rich:1},
+      fish:{umami:2,bloody:2,moist:3}, shellfish:{umami:3,bloody:1,moist:2}, egg:{umami:1,moist:2,rich:1},
+      firm_vegetable:{sweet:1,moist:2}, leafy_vegetable:{moist:3}, grain_noodle:{}, legume:{umami:1}, dough:{},
+      dairy:{rich:2}, fruit:{sweet:2,sour:1,moist:2}, aromatic:{aromatic:2,pungent:1}, spice:{aromatic:2,pungent:1},
+      nut_seed:{rich:2,aromatic:1}, liquid:{moist:4}, fat:{rich:4}, seasoning:{}
+    };
+    const profileTraits = {
+      red_meat:{protein:3,fat:2,water:2}, poultry:{protein:3,fat:1,water:2}, fish:{protein:3,fat:1,water:3},
+      shellfish:{protein:2,water:3}, egg:{protein:2,fat:1,water:2}, firm_vegetable:{water:2,sugar:1,starch:1},
+      leafy_vegetable:{water:3}, grain_noodle:{starch:3,water:1}, legume:{protein:2,starch:2}, dough:{starch:3},
+      dairy:{fat:2,water:1}, fruit:{water:3,sugar:2}, aromatic:{water:1,sugar:1}, spice:{}, nut_seed:{fat:3,protein:1},
+      liquid:{water:4}, fat:{fat:4}, seasoning:{}
+    };
+    const ingredientSensory = {
+      盐:{salty:4}, 酱油:{salty:3,umami:3}, 糖:{sweet:4}, 醋:{sour:4}, 辣椒:{spicy:3,pungent:1},
+      辣椒粉:{spicy:4}, 辣椒酱:{spicy:3,salty:1,sour:1}, 大蒜:{pungent:3,aromatic:1}, 姜:{pungent:2,aromatic:2},
+      黑胡椒:{pungent:3,aromatic:1}, 孜然:{aromatic:3,pungent:1}, 咖喱香料:{aromatic:4,pungent:2},
+      柠檬:{sour:4,aromatic:1,moist:1}, 青柠:{sour:4,aromatic:2,moist:1}, 番茄:{sour:1,sweet:1,umami:1,moist:3},
+      高汤:{umami:3,moist:4,salty:1}, 椰奶:{sweet:1,moist:3,rich:3}, 水:{moist:5},
+      植物油:{rich:4}, 橄榄油:{rich:4,aromatic:1}, 黄油:{rich:4,aromatic:1},
+      奶酪:{salty:2,umami:2,rich:3}, 蘑菇:{umami:3,moist:2}, 三文鱼:{umami:2,bloody:1,moist:3,rich:2}
+    };
+    const ingredientTraits = {糖:{sugar:4}, 洋葱:{sugar:2,water:2}, 大蒜:{sugar:1}, 植物油:{fat:5}, 橄榄油:{fat:5}, 黄油:{fat:4}, 水:{water:5}, 高汤:{water:5}};
+    // 辅助投入放宽主体限制：炒锅可接受盐、油、蒜和少量液体参与同一批处理。
+    const supportByTool = {
+      '搅拌碗':['seasoning','spice','aromatic','fat','liquid','dairy'],
+      '平底锅':['seasoning','spice','aromatic','fat','liquid'], '炒锅':['seasoning','spice','aromatic','fat','liquid'],
+      '汤锅':['seasoning','spice','aromatic','fat','liquid'], '蒸锅':['seasoning','spice','aromatic','fat','liquid'],
+      '烤箱':['seasoning','spice','aromatic','fat','liquid'], '烤架':['seasoning','spice','aromatic','fat'],
+      '油炸锅':['seasoning','spice','aromatic','fat'], '压模 / 饼铛':['seasoning','spice','aromatic','fat','liquid'],
+      '刷子':['seasoning','fat','liquid']
+    };
+
+    /* ========================================================================
+       3. 状态与规则（State & Logic）
+       state 是唯一可变状态。规则函数尽量接收普通对象并返回计算结果，便于之后
+       移入 TypeScript、编写单元测试，或接入真正的游戏循环。
+       ======================================================================== */
+    const state = { items: [], batchInputs: [], nextId: 1 };
+    const el = id => document.getElementById(id);
+    const clamp = value => Math.max(0,Math.min(10,Math.round(value)));
+    const addMap = (target,source,multiplier=1) => Object.entries(source || {}).forEach(([key,value]) => target[key]=(target[key]||0)+value*multiplier);
+    const mergeMap = (base,override) => ({...(base||{}),...(override||{})});
+
+    function resolveDescription(operationId,profile,level) {
+      const operation=operations[operationId];
+      if(operation.kind==='instant') return operation.appearance;
+      const model=progressModels[operationId];
+      return (model.overrides?.[profile]||model.default)[level];
+    }
+    function roleFor(profile) {
+      return TEXT.roles[profile] || TEXT.roles.main;
+    }
+    function itemPrimaryProfile(item) {
+      return item.ingredients.find(x=>roleFor(x.profile)===TEXT.roles.main)?.profile || item.ingredients[0]?.profile;
+    }
+    function inputCompatible(profile) {
+      const opId=el('operation').value, tool=tools[Number(el('tool').value)];
+      return operations[opId].profiles.includes(profile) || (supportByTool[tool.name]||[]).includes(profile);
+    }
+    function currentInput() {
+      const value=el('ingredient').value;
+      if(value.startsWith('raw:')) {
+        const ingredient=ingredients.find(x=>x.name===value.slice(4));
+        return {kind:'raw',key:value,label:ingredient.name,profile:ingredient.profile,ingredients:[ingredient],history:[]};
+      }
+      const item=state.items.find(x=>x.id===Number(value.slice(5)));
+      return {kind:'item',key:value,label:item.title,profile:itemPrimaryProfile(item),ingredients:item.ingredients,history:item.history,itemId:item.id};
+    }
+
+    // 3A. 交互控制器：把控件选择转换为规则层可以处理的普通对象。
+    function updateOperations() {
+      const tool=tools[Number(el('tool').value)];
+      el('operation').innerHTML=tool.ops.map(opId=>`<option value="${opId}">${operations[opId].label}</option>`).join('');
+      updateProgress();
+      updateIngredientOptions();
+    }
+    function updateProgress() {
+      const opId=el('operation').value, operation=operations[opId], progressive=operation.kind==='progressive';
+      el('progressBox').hidden=!progressive;
+      el('profileBadge').textContent='按主体食材解析';
+      el('methodBadge').textContent=progressive?progressModels[opId].axis:TEXT.instantOperation;
+      el('statePreview').textContent=progressive?TEXT.resolveByIngredient:operation.appearance;
+      updateIngredientOptions();
+    }
+    function updateIngredientOptions() {
+      if(!el('operation').value) return;
+      const processed=state.items.filter(item=>inputCompatible(itemPrimaryProfile(item))).map(item=>`<option value="item:${item.id}">♻ ${item.title}</option>`).join('');
+      const rawGroups=ingredientGroups.map(([group,profile,...names])=>{
+        const allowed=names.filter(()=>inputCompatible(profile));
+        return allowed.length?`<optgroup label="${group}">${allowed.map(name=>`<option value="raw:${name}">${name}</option>`).join('')}</optgroup>`:'';
+      }).join('');
+      el('ingredient').innerHTML=(processed?`<optgroup label="已处理食材">${processed}</optgroup>`:'')+rawGroups;
+      updateRole();
+    }
+    function updateRole() {
+      const input=currentInput();
+      el('role').innerHTML=`<option>${roleFor(input.profile)}</option>`;
+      const operation=operations[el('operation').value];
+      if(operation.kind==='progressive') {
+        el('statePreview').textContent=resolveDescription(el('operation').value,input.profile,Number(el('progress').value));
+      }
+    }
+    function addInput() {
+      const input=currentInput();
+      if(state.batchInputs.some(x=>x.key===input.key)) return;
+      const operation=operations[el('operation').value];
+      input.level=operation.kind==='progressive'?Number(el('progress').value):null;
+      state.batchInputs.push(input);
+      renderBatch();
+    }
+    function renderBatch() {
+      const progressive=operations[el('operation').value].kind==='progressive';
+      el('batchInputs').innerHTML=state.batchInputs.length?state.batchInputs.map((input,index)=>{
+        const progress=progressive?`<label>加工进度<select data-input-progress="${index}">${[0,1,2,3,4].map(level=>`<option value="${level}" ${level===input.level?'selected':''}>${level} / 4</option>`).join('')}</select></label>`:'';
+        const description=progressive?resolveDescription(el('operation').value,input.profile,input.level):operations[el('operation').value].appearance;
+        return `<div class="draft-step"><span><strong>${input.label}</strong><br><small>${roleFor(input.profile)} · ${description}</small>${progress}</span><button type="button" data-remove-input="${index}">移除</button></div>`;
+      }).join(''):`<div class="empty">${TEXT.emptyBatch}</div>`;
+    }
+    function uniqueIngredients(list) {
+      const seen=new Set();
+      return list.filter(item=>{const key=item.name; if(seen.has(key)) return false; seen.add(key); return true;});
+    }
+    function calculateSensory(item) {
+      const scores={};
+      item.ingredients.forEach(ingredient=>addMap(scores,mergeMap(profileSensory[ingredient.profile],ingredientSensory[ingredient.name])));
+      item.history.forEach(step=>{
+        const active=item.ingredients.filter(x=>step.activeNames.includes(x.name));
+        const dryHeat=['pan_fried','stir_fried','roasted','baked','grilled','deep_fried','toasted','caramelized','griddled'];
+        const wetHeat=['boiled','simmered','braised','poached','steamed'];
+        if(operations[step.opId].kind==='progressive') {
+          // 先逐项应用进度。同一批里的鸡肉可以是 3/4，盐或蒜可以是 1/4。
+          active.forEach(ingredient=>{
+            const level=step.levelsByName[ingredient.name]??0;
+            const traits=mergeMap(profileTraits[ingredient.profile],ingredientTraits[ingredient.name]);
+            if(['red_meat','poultry','fish','shellfish'].includes(ingredient.profile)) scores.bloody=(scores.bloody||0)-[0,1,4,5,5][level];
+            if(wetHeat.includes(step.opId)) {
+              scores.moist=(scores.moist||0)+[0,1,2,3,3][level];
+              if(level>=3) scores.dry=(scores.dry||0)+(level-3);
+            }
+            if(dryHeat.includes(step.opId)) {
+              scores.moist=(scores.moist||0)-[0,0,1,2,3][level];
+              scores.dry=(scores.dry||0)+[0,0,0,1,3][level];
+              scores.roasted=(scores.roasted||0)+[0,1,2,3,4][level];
+            }
+            if(step.opId==='grilled') scores.smoky=(scores.smoky||0)+[0,1,2,3,4][level];
+            if(step.opId==='deep_fried') scores.crisp=(scores.crisp||0)+[0,1,3,4,5][level];
+            if(['baked','roasted','pan_fried','griddled'].includes(step.opId)&&level>=2) scores.crisp=(scores.crisp||0)+(level-1);
+            if(traits.sugar>0&&dryHeat.includes(step.opId)&&level>=2) { scores.sweet=(scores.sweet||0)+1; scores.roasted=(scores.roasted||0)+Math.min(2,level-1); }
+            if((ingredient.name==='大蒜'||ingredient.name==='姜')&&level>=1) { scores.pungent=(scores.pungent||0)-Math.min(2,level); scores.aromatic=(scores.aromatic||0)+Math.min(3,level); }
+          });
+
+          // 再执行批次级反应：油脂存在时，以蛋白质食材自身的进度决定焦香。
+          const hasFat=active.some(ingredient=>mergeMap(profileTraits[ingredient.profile],ingredientTraits[ingredient.name]).fat>0);
+          const proteinLevels=active.filter(ingredient=>mergeMap(profileTraits[ingredient.profile],ingredientTraits[ingredient.name]).protein>0).map(ingredient=>step.levelsByName[ingredient.name]??0);
+          const proteinHeat=Math.max(0,...proteinLevels);
+          if(hasFat&&dryHeat.includes(step.opId)&&proteinHeat>=2) scores.roasted=(scores.roasted||0)+Math.min(3,proteinHeat-1);
+        }
+      });
+      Object.keys(senseLabels).forEach(key=>scores[key]=clamp(scores[key]||0));
+      return scores;
+    }
+    function processBatch() {
+      if(!state.batchInputs.length) return;
+      const toolIndex=Number(el('tool').value),opId=el('operation').value,operation=operations[opId];
+      const consumedIds=state.batchInputs.filter(x=>x.kind==='item').map(x=>x.itemId);
+      const ingredientsList=uniqueIngredients(state.batchInputs.flatMap(x=>x.ingredients));
+      const histories=state.batchInputs.flatMap(x=>x.history);
+      // 同一批共享厨具与操作，每个投入项保留自己的进度。
+      const levelsByName={};
+      state.batchInputs.forEach(input=>input.ingredients.forEach(ingredient=>levelsByName[ingredient.name]=input.level));
+      const appearancesByName={};
+      ingredientsList.forEach(ingredient=>{
+        const level=levelsByName[ingredient.name];
+        appearancesByName[ingredient.name]=resolveDescription(opId,ingredient.profile,level);
+      });
+      const step={toolIndex,opId,levelsByName,activeNames:ingredientsList.map(x=>x.name),appearancesByName};
+      const titleNames=ingredientsList.filter(x=>roleFor(x.profile)===TEXT.roles.main).map(x=>x.name);
+      const title=(titleNames.length?titleNames:ingredientsList.map(x=>x.name)).slice(0,3).join('、')+(ingredientsList.length>3?'等':'');
+      state.items=state.items.filter(item=>!consumedIds.includes(item.id));
+      const item={id:state.nextId++,title,ingredients:ingredientsList,history:[...histories,step]};
+      item.sensory=calculateSensory(item);
+      state.items.push(item);
+      state.batchInputs=[];
+      renderBatch();
+      render();
+      updateIngredientOptions();
+    }
+    function stepText(step) {
+      return `${tools[step.toolIndex].name} → ${operations[step.opId].label}`;
+    }
+    function stepResults(step,separator='<br>') {
+      return step.activeNames.map(name=>{
+        const level=step.levelsByName[name];
+        const progress=level===null?'':` ${level}/4`;
+        return `${name}${progress}：${step.appearancesByName[name]}`;
+      }).join(separator);
+    }
+    function cuisineScores() {
+      const scores={};
+      state.items.forEach(item=>{
+        item.ingredients.forEach(ingredient=>addMap(scores,ingredientCuisine[ingredient.name]));
+        item.history.forEach(step=>addMap(scores,tools[step.toolIndex].cuisine));
+      });
+      return Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+    }
+    function dishSensory() {
+      const total={};
+      state.items.forEach(item=>addMap(total,item.sensory));
+      Object.keys(senseLabels).forEach(key=>total[key]=clamp(total[key]||0));
+      total.bloody=clamp((total.bloody||0)-Math.floor((total.pungent||0)*.3+(total.spicy||0)*.2+(total.sour||0)*.4+(total.aromatic||0)*.2));
+      return total;
+    }
+    function sensorySummary(scores) {
+      const strong=Object.entries(scores).filter(([,value])=>value>=2).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([key,value])=>`${senseLabels[key]} ${value}`);
+      const balance=(scores.moist||0)-(scores.dry||0);
+      const moisture=balance>1?`整体偏湿润（净值 ${balance}）`:balance<-1?`整体偏干燥（净值 ${-balance}）`:'湿润与干燥大致平衡';
+      return `${strong.join('，')||'感官特征较轻'}；${moisture}`;
+    }
+
+    /* ========================================================================
+       4. 页面呈现（View & Binding）
+       render 只负责把状态画到页面；init 只负责初始化控件与绑定事件。
+       ======================================================================== */
+    function render() {
+      el('items').innerHTML=state.items.length?state.items.map((item,index)=>{
+        const ingredientsText=item.ingredients.map(x=>`${x.name}（${roleFor(x.profile)}）`).join('、');
+        const chain=item.history.map((step,i)=>`${i+1}. ${stepText(step)}<br>${stepResults(step)}`).join('<br>');
+        return `<div class="item"><div><strong>${item.title}</strong><small>组成：${ingredientsText}<br>${chain}</small></div><button class="remove" data-remove="${index}" type="button">移除</button></div>`;
+      }).join(''):`<div class="empty">${TEXT.emptyProcessed}</div>`;
+      const cuisine=cuisineScores(),sensory=dishSensory();
+      el('scores').textContent=`菜系倾向：${cuisine.length?cuisine.map(([name,score])=>`${name} ${score}`).join(' · '):TEXT.freeCuisine}`;
+      el('sensory').innerHTML=Object.entries(senseLabels).map(([key,label])=>`<div class="sense"><span>${label}</span><span class="sense-bar"><i style="width:${sensory[key]*10}%"></i></span><b>${sensory[key]}</b></div>`).join('');
+      el('balance').textContent=sensorySummary(sensory);
+      const itemLines=state.items.map(item=>`- ${item.title}\n  组成：${item.ingredients.map(x=>x.name).join('、')}\n  加工顺序：\n${item.history.map((step,i)=>`    ${i+1}. ${stepText(step)}\n       ${stepResults(step,'\n       ')}`).join('\n')}\n  感官：${sensorySummary(item.sensory)}`);
+      const cuisineLines=cuisine.slice(0,3).map(([name,score],index)=>`- ${name}：${['强','中等','轻微'][index]}（${score}分）`);
+      el('prompt').value=`生成一张沉浸式、写实的成品料理图片。\n\n已处理食材：\n${itemLines.join('\n')||'- 尚未处理食材'}\n\n整体感官画像：\n- ${sensorySummary(sensory)}\n\n菜系倾向：\n${cuisineLines.join('\n')||'- 自由融合'}\n\n画面要求：\n- 将全部已处理食材自然组合成一份完整、可食用的菜品\n- 准确保留加工顺序、熟度、外观和质地\n- 自然餐桌光线，真实食物质感，近景构图\n- 画面中不出现文字、人物、包装或品牌标志`;
+    }
+    function init() {
+      el('tool').innerHTML=tools.map((tool,index)=>`<option value="${index}">${tool.name}</option>`).join('');
+      el('progress').innerHTML=[0,1,2,3,4].map(level=>`<option value="${level}">${level} / 4</option>`).join('');
+      el('progress').value='2';
+      el('tool').addEventListener('change',updateOperations);
+      el('operation').addEventListener('change',updateProgress);
+      el('progress').addEventListener('change',updateProgress);
+      el('ingredient').addEventListener('change',updateRole);
+      el('addInput').addEventListener('click',addInput);
+      el('process').addEventListener('click',processBatch);
+      el('batchInputs').addEventListener('click',event=>{const index=event.target.dataset.removeInput;if(index!==undefined){state.batchInputs.splice(Number(index),1);renderBatch();}});
+      el('batchInputs').addEventListener('change',event=>{
+        const index=event.target.dataset.inputProgress;
+        if(index!==undefined) { state.batchInputs[Number(index)].level=Number(event.target.value); renderBatch(); }
+      });
+      el('items').addEventListener('click',event=>{const index=event.target.dataset.remove;if(index!==undefined){state.items.splice(Number(index),1);render();updateIngredientOptions();}});
+      el('copy').addEventListener('click',async()=>{await navigator.clipboard.writeText(el('prompt').value);el('copy').textContent=TEXT.copied;setTimeout(()=>el('copy').textContent=TEXT.copyPrompt,1000);});
+      updateOperations();
+      renderBatch();
+      render();
+    }
+    init();
+  </script>
+</body>
+</html>
