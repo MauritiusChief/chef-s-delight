@@ -1,9 +1,18 @@
-/* 烹饪提示词调试器专用的双栏布局、表单和计算明细。 */
-.debug-page { width: min(1200px, calc(100% - 2rem)); margin: 0 auto; padding: 1.5rem 0 3rem; }
+/* 烹饪提示词调试器专用的三栏布局、表单和计算明细。 */
+.debug-page { width: calc(100% - 2rem); margin: 0 auto; padding: 1.5rem 0 3rem; }
 .page-header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .page-header h1 { margin: 0.35rem 0 0; font-size: 1.5rem; }
-.debug-layout { display: grid; grid-template-columns: minmax(320px, 2fr) minmax(440px, 3fr); gap: 1rem; align-items: start; }
-.debug-left, .debug-right { display: grid; gap: 1rem; }
+.debug-layout {
+  display: grid;
+  grid-template-areas: "left middle right";
+  grid-template-columns: minmax(260px, 0.9fr) minmax(300px, 1fr) minmax(340px, 1.2fr);
+  gap: 1rem;
+  align-items: start;
+}
+.debug-left, .debug-middle, .debug-right { display: grid; min-width: 0; gap: 1rem; align-content: start; }
+.debug-left { grid-area: left; }
+.debug-middle { grid-area: middle; }
+.debug-right { grid-area: right; }
 .debug-panel { padding: 1rem; border: 1px solid #ccc; background: #fff; }
 .debug-panel h2 { margin: 0 0 0.8rem; font-size: 1rem; }
 .debug-panel h3 { margin: 1rem 0 0.5rem; font-size: 0.95rem; }
@@ -24,14 +33,15 @@
 .text-button { padding: 0; border: 0; color: #2f5d46; background: transparent; }
 .simple-list { border-top: 1px solid #ddd; }
 .batch-list { margin-top: 0.75rem; }
-.simple-item { display: flex; justify-content: space-between; gap: 1rem; padding: 0.65rem 0; border-bottom: 1px solid #ddd; }
+.simple-item { display: flex; justify-content: space-between; gap: 1rem; padding: 0.65rem 0; border-bottom: 1px solid #ddd; overflow-wrap: anywhere; }
+.simple-item > div { min-width: 0; }
 .simple-item small { display: block; margin-top: 0.2rem; color: #666; }
 .inline-field { grid-template-columns: auto 7rem; align-items: center; margin-top: 0.5rem; }
 .history { margin: 0.5rem 0 0; padding-left: 1.25rem; font-size: 0.85rem; }
 .history li + li { margin-top: 0.4rem; }
 .empty { margin: 0.4rem 0; color: #888; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.prompt-panel textarea { min-height: 360px; resize: vertical; font: 0.78rem/1.45 ui-monospace, Consolas, monospace; }
+.prompt-panel textarea { min-height: 320px; resize: vertical; font: 0.78rem/1.45 ui-monospace, Consolas, monospace; }
 .calculation-panel { font-size: 0.86rem; }
 .calculation-panel details { padding: 0.55rem 0; border-top: 1px solid #ddd; }
 .calculation-panel summary { cursor: pointer; font-weight: 600; }
@@ -43,8 +53,24 @@
 .overall-calculation { padding-top: 0.25rem; border-top: 1px solid #999; }
 .subheading { margin-top: 1.25rem !important; padding-top: 1rem; border-top: 1px solid #999; }
 
+@media (max-width: 1050px) {
+  .debug-layout {
+    grid-template-areas:
+      "left right"
+      "middle right";
+    grid-template-columns: minmax(300px, 0.9fr) minmax(360px, 1.1fr);
+  }
+}
+
 @media (max-width: 800px) {
-  .debug-page { width: min(100% - 1rem, 1200px); padding-top: 0.75rem; }
-  .debug-layout { grid-template-columns: 1fr; }
+  .debug-page { width: calc(100% - 1rem); padding-top: 0.75rem; }
+  .debug-layout {
+    grid-template-areas:
+      "left"
+      "middle"
+      "right";
+    grid-template-columns: minmax(0, 1fr);
+  }
   .form-grid { grid-template-columns: 1fr; }
+  .prompt-panel textarea { min-height: 260px; }
 }

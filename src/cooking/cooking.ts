@@ -303,11 +303,13 @@ export function processBatch(inputs: BatchInput[], toolId: string, operationId: 
     activeNames: itemIngredients.map((ingredient) => ingredient.name),
     appearancesByName,
   }
-  const titleIngredients = itemIngredients.filter((ingredient) => roleFor(ingredient.profile) === '主体食材')
-  const titleParts = (titleIngredients.length ? titleIngredients : itemIngredients).map((ingredient) => ingredient.name)
+  const titleParts = itemIngredients.map((ingredient) => ingredient.name)
+  const title = titleParts.length > 1
+    ? `混合物（${titleParts.slice(0, 3).join('、')}${titleParts.length > 3 ? '等' : ''}）`
+    : titleParts[0]
   const item: ProcessedItem = {
     id,
-    title: `${titleParts.slice(0, 3).join('、')}${itemIngredients.length > 3 ? '等' : ''}`,
+    title,
     ingredients: itemIngredients,
     history: [...inputs.flatMap((input) => input.history), step],
     sensory: {} as Record<SenseId, number>,

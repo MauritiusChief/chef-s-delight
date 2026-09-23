@@ -18,7 +18,7 @@ import {
 import { ingredientGroups, ingredients, profileLabels, tools } from '../cooking/data/catalog'
 import { operations } from '../cooking/data/operations'
 import { senseLabels } from '../cooking/data/sensory'
-import { buildImagePrompt } from '../cooking/prompt'
+import { buildEvaluationPrompt, buildImagePrompt } from '../cooking/prompt'
 import { useCookingStore } from '../cooking/store'
 import type { ScoreMap, SenseId } from '../cooking/types'
 import '../styles/debug-prompt.css'
@@ -41,12 +41,12 @@ function formatCuisine(scores: ScoreMap) {
   return values.join('，') || '无菜系加分'
 }
 
-/** 组合左侧加工操作与右侧实时输出、计算追踪。 */
+/** 组合左侧加工操作、中部计算追踪与右侧双模型提示词。 */
 export function DebugPromptPage() {
   const [toolId, setToolId] = useState(tools[0].id)
   const [operationId, setOperationId] = useState(tools[0].operationIds[0])
   const [ingredientValue, setIngredientValue] = useState('raw:牛肉')
-  const [copyLabel, setCopyLabel] = useState('复制')
+  const [copiedPrompt, setCopiedPrompt] = useState<'image' | 'evaluation' | null>(null)
 
   const items = useCookingStore((state) => state.items)
   const batchInputs = useCookingStore((state) => state.batchInputs)
@@ -87,7 +87,8 @@ export function DebugPromptPage() {
   const selectedProfile = selectedItem ? itemPrimaryProfile(selectedItem) : selectedIngredient?.profile
   const sensoryCalculation = dishSensoryDetails(items)
   const cuisineCalculation = cuisineDetails(items)
-  const prompt = buildImagePrompt(items)
+  const imagePrompt = buildImagePrompt(items)
+  const evaluationPrompt = buildEvaluationPrompt(items)
 
   /** 切换厨具时保留批次，并选择该厨具下首个满足当前批次的操作。 */
   function changeTool(nextToolId: string) {
@@ -109,11 +110,11 @@ export function DebugPromptPage() {
     else addBatchInput(createRawInput(ingredientValue.slice(4), level))
   }
 
-  /** 将实时生成的图片提示词写入系统剪贴板。 */
-  async function copyPrompt() {
+  /** 将指定模型的实时提示词写入系统剪贴板。 */
+  async function copyPrompt(prompt: string, type: 'image' | 'evaluation') {
     await navigator.clipboard.writeText(prompt)
-    setCopyLabel('已复制')
-    window.setTimeout(() => setCopyLabel('复制'), 1000)
+    setCopiedPrompt(type)
+    window.setTimeout(() => setCopiedPrompt(null), 1000)
   }
 
   return (
@@ -221,15 +222,7 @@ export function DebugPromptPage() {
           </section>
         </div>
 
-        <div className="debug-right">
-          <section className="debug-panel prompt-panel">
-            <div className="panel-heading">
-              <h2>实时提示词</h2>
-              <button className="text-button" type="button" onClick={copyPrompt}>{copyLabel}</button>
-            </div>
-            <textarea value={prompt} readOnly />
-          </section>
-
+        <div className="debug-middle">
           <section className="debug-panel calculation-panel">
             <h2>感官计算</h2>
             {items.length === 0 && <p className="empty">执行加工后显示计算过程</p>}
@@ -297,6 +290,28 @@ export function DebugPromptPage() {
                   : '自由融合'}
               </p>
             )}
+          </section>
+        </div>
+
+        <div className="debug-right">
+          <section className="debug-panel prompt-panel">
+            <div className="panel-heading">
+              <h2>生图提示词</h2>
+              <button className="text-button" type="button" onClick={() => copyPrompt(imagePrompt, 'image')}>
+                {copiedPrompt === 'image' ? '已复制' : '复制'}
+              </button>
+            </div>
+            <textarea value={imagePrompt} readOnly />
+          </section>
+
+          <section className="debug-panel prompt-panel">
+            <div className="panel-heading">
+              <h2>料理评价 LLM 提示词</h2>
+              <button className="text-button" type="button" onClick={() => copyPrompt(evaluationPrompt, 'evaluation')}>
+                {copiedPrompt === 'evaluation' ? '已复制' : '复制'}
+              </button>
+            </div>
+            <textarea value={evaluationPrompt} readOnly />
           </section>
         </div>
       </div>
