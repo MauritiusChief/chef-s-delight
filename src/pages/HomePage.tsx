@@ -1,5 +1,8 @@
+/** 项目占位首页，提供进入烹饪调试器的入口。 */
 import { Link } from 'react-router-dom'
+import '../styles/home.css'
 
+/** 渲染游戏正式首页完成前的占位内容。 */
 export function HomePage() {
   return (
     <main className="home-page">

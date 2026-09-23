@@ -1,6 +1,8 @@
+/** 将当前料理状态转换为供图片生成模型使用的中文提示词。 */
 import { cuisineScores, dishSensory, sensorySummary, stepResults, stepTitle } from './cooking'
 import type { ProcessedItem } from './types'
 
+/** 汇总产物、加工历史、感官和菜系，生成最终图片提示词。 */
 export function buildImagePrompt(items: ProcessedItem[]) {
   const sensory = dishSensory(items)
   const itemLines = items.map((item) => {

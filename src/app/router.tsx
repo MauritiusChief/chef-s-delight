@@ -1,3 +1,4 @@
+/** 集中声明 SPA 路由，使页面组件不负责 URL 映射。 */
 import { createBrowserRouter } from 'react-router-dom'
 import { DebugPromptPage } from '../pages/DebugPromptPage'
 import { HomePage } from '../pages/HomePage'

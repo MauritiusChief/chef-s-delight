@@ -1,3 +1,4 @@
+/** 烹饪内容目录：定义食材分类、操作、厨具及兼容范围。 */
 import type {
   Ingredient,
   IngredientGroup,
@@ -6,6 +7,7 @@ import type {
   Tool,
 } from '../types'
 
+/** 程序内部食材大类 ID 对应的中文名称。 */
 export const profileLabels: Record<ProfileId, string> = {
   red_meat: '红肉', poultry: '禽肉', fish: '鱼肉', shellfish: '贝类与软体海鲜', egg: '蛋',
   firm_vegetable: '结实蔬菜', leafy_vegetable: '叶菜', grain_noodle: '谷物与面食',
@@ -13,6 +15,7 @@ export const profileLabels: Record<ProfileId, string> = {
   spice: '香辛料', nut_seed: '坚果与种子', liquid: '液体', fat: '油脂', seasoning: '调味料',
 }
 
+/** 供选择器展示的食材分组及其所属烹饪大类。 */
 export const ingredientGroups: IngredientGroup[] = [
   { label: '红肉', profile: 'red_meat', names: ['牛肉', '猪肉', '羊肉'] },
   { label: '禽肉', profile: 'poultry', names: ['鸡肉', '鸡腿', '鸡翅'] },
@@ -34,6 +37,7 @@ export const ingredientGroups: IngredientGroup[] = [
   { label: '香辛料', profile: 'spice', names: ['黑胡椒', '孜然', '辣椒粉', '咖喱香料', '肉桂'] },
 ]
 
+/** 将展示分组展开成计算层使用的独立食材记录。 */
 export const ingredients: Ingredient[] = ingredientGroups.flatMap(({ label, profile, names }) =>
   names.map((name) => ({ name, group: label, profile })),
 )
@@ -43,6 +47,7 @@ const solidProfiles = allProfiles.filter((profile) => !['liquid', 'fat', 'season
 const cookableProfiles = allProfiles.filter((profile) => !['spice', 'fat'].includes(profile))
 const cuttableProfiles = solidProfiles.filter((profile) => !['spice', 'grain_noodle'].includes(profile))
 
+/** 全部操作及其类型、兼容大类和即时外观描述。 */
 export const operations: Record<string, Operation> = {
   halved: { label: '对半', kind: 'instant', profiles: cuttableProfiles, appearance: '切成大小相近的两半' },
   sliced_thin: { label: '切薄片', kind: 'instant', profiles: cuttableProfiles, appearance: '切成均匀薄片' },
@@ -83,6 +88,7 @@ export const operations: Record<string, Operation> = {
   glazed: { label: '挂汁', kind: 'instant', profiles: solidProfiles, appearance: '表面包裹光亮而均匀的浓稠汁液' },
 }
 
+/** 厨具可用操作和厨具自身提供的菜系倾向。 */
 export const tools: Tool[] = [
   { id: 'knife', name: '菜刀 + 砧板', operationIds: ['halved', 'sliced_thin', 'sliced_thick', 'strips', 'diced_small', 'diced_large', 'chunks', 'minced'], cuisine: { 中餐: 1, 日料: 1, 法餐: 1 } },
   { id: 'grater', name: '擦丝器', operationIds: ['grated'], cuisine: { 欧洲菜: 1, 南亚菜: 1, 墨西哥菜: 1 } },
@@ -102,6 +108,7 @@ export const tools: Tool[] = [
   { id: 'brush', name: '刷子', operationIds: ['oiled', 'sauced', 'glazed'], cuisine: { 烧烤菜: 1 } },
 ]
 
+/** 厨具允许额外加入、不受操作主体兼容范围限制的辅助食材大类。 */
 export const supportByTool: Record<string, ProfileId[]> = {
   'mixing-bowl': ['seasoning', 'spice', 'aromatic', 'fat', 'liquid', 'dairy'],
   'frying-pan': ['seasoning', 'spice', 'aromatic', 'fat', 'liquid'],

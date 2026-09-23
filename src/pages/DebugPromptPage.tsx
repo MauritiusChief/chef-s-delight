@@ -1,3 +1,4 @@
+/** 烹饪调试页面：编辑加工批次并实时检查计算明细与最终提示词。 */
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -18,9 +19,11 @@ import { senseLabels } from '../cooking/data/sensory'
 import { buildImagePrompt } from '../cooking/prompt'
 import { useCookingStore } from '../cooking/store'
 import type { ScoreMap, SenseId } from '../cooking/types'
+import '../styles/debug-prompt.css'
 
 const levels = [0, 1, 2, 3, 4]
 
+/** 将非零感官分数转换为适合调试面板阅读的文本。 */
 function formatSensory(scores: ScoreMap<SenseId>, signed = false) {
   const values = Object.entries(scores)
     .filter(([, value]) => value !== undefined && value !== 0)
@@ -28,6 +31,7 @@ function formatSensory(scores: ScoreMap<SenseId>, signed = false) {
   return values.join('，') || '无感官数值'
 }
 
+/** 将非零菜系贡献转换为“菜系 +分数”的文本。 */
 function formatCuisine(scores: ScoreMap) {
   const values = Object.entries(scores)
     .filter(([, value]) => value !== undefined && value !== 0)
@@ -35,6 +39,7 @@ function formatCuisine(scores: ScoreMap) {
   return values.join('，') || '无菜系加分'
 }
 
+/** 组合左侧加工操作与右侧实时输出、计算追踪。 */
 export function DebugPromptPage() {
   const [toolId, setToolId] = useState(tools[0].id)
   const [operationId, setOperationId] = useState(tools[0].operationIds[0])
@@ -80,6 +85,7 @@ export function DebugPromptPage() {
   const cuisineCalculation = cuisineDetails(items)
   const prompt = buildImagePrompt(items)
 
+  /** 切换厨具时同步选择其首个操作，并清空不再适用的批次。 */
   function changeTool(nextToolId: string) {
     const nextTool = tools.find((candidate) => candidate.id === nextToolId) ?? tools[0]
     setToolId(nextTool.id)
@@ -87,11 +93,13 @@ export function DebugPromptPage() {
     clearBatch()
   }
 
+  /** 切换操作时清空按旧操作建立的批次。 */
   function changeOperation(nextOperationId: string) {
     setOperationId(nextOperationId)
     clearBatch()
   }
 
+  /** 将当前选择加入批次；渐进式操作从 0/4 开始。 */
   function addInput() {
     if (!ingredientValue) return
     const level = progressive ? 0 : null
@@ -99,6 +107,7 @@ export function DebugPromptPage() {
     else addBatchInput(createRawInput(ingredientValue.slice(4), level))
   }
 
+  /** 将实时生成的图片提示词写入系统剪贴板。 */
   async function copyPrompt() {
     await navigator.clipboard.writeText(prompt)
     setCopyLabel('已复制')

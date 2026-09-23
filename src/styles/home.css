@@ -1,0 +1,15 @@
+/* 占位首页和未找到页面共用的居中布局。 */
+.home-page { max-width: 720px; margin: 16vh auto 0; padding: 1.5rem; }
+.home-page h1 { margin: 0 0 0.5rem; font-size: clamp(2rem, 6vw, 3.5rem); }
+.home-page p { color: #656565; }
+.eyebrow { margin: 0; color: #2f5d46; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.button-link {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid #273d31;
+  border-radius: 5px;
+  color: #fff;
+  background: #273d31;
+  text-decoration: none;
+}

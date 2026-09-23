@@ -1,3 +1,4 @@
+/** 烹饪领域规则：处理兼容性、加工事件、感官、菜系和调试明细。 */
 import { ingredients, operations, profileLabels, supportByTool, tools } from './data/catalog'
 import { progressModels } from './data/progress'
 import {
@@ -34,20 +35,24 @@ const roleLabels: Partial<Record<ProfileId, string>> = {
   aromatic: '芳香配料',
 }
 
+/** 将任意分数取整并限制在游戏规定的 0-10 区间。 */
 function clamp(value: number) {
   return Math.max(0, Math.min(10, Math.round(value)))
 }
 
+/** 把一个稀疏分数表按倍率累加到另一个分数表。 */
 function addMap(target: ScoreMap, source: ScoreMap | undefined, multiplier = 1) {
   Object.entries(source ?? {}).forEach(([key, value]) => {
     if (value !== undefined) target[key] = (target[key] ?? 0) + value * multiplier
   })
 }
 
+/** 根据食材大类返回其在加工批次中的作用。 */
 export function roleFor(profile: ProfileId) {
   return roleLabels[profile] ?? '主体食材'
 }
 
+/** 解析某项操作在指定食材大类和进度下的外观描述。 */
 export function resolveDescription(operationId: string, profile: ProfileId, level: number | null) {
   const operation = operations[operationId]
   if (!operation) throw new Error(`未知操作：${operationId}`)
@@ -59,17 +64,20 @@ export function resolveDescription(operationId: string, profile: ProfileId, leve
   return (model.overrides?.[profile] ?? model.default)[safeLevel]
 }
 
+/** 取得已处理食材的首个主体大类，供后续兼容性判断使用。 */
 export function itemPrimaryProfile(item: ProcessedItem) {
   return item.ingredients.find((ingredient) => roleFor(ingredient.profile) === '主体食材')?.profile
     ?? item.ingredients[0]?.profile
 }
 
+/** 判断食材大类能否作为主体或辅助投入参与指定加工。 */
 export function isInputCompatible(toolId: string, operationId: string, profile: ProfileId) {
   return operations[operationId]?.profiles.includes(profile)
     || supportByTool[toolId]?.includes(profile)
     || false
 }
 
+/** 将基础食材转换为尚未执行的批次投入。 */
 export function createRawInput(name: string, level: number | null): BatchInput {
   const ingredient = ingredients.find((candidate) => candidate.name === name)
   if (!ingredient) throw new Error(`未知食材：${name}`)
@@ -84,6 +92,7 @@ export function createRawInput(name: string, level: number | null): BatchInput {
   }
 }
 
+/** 将已有产物及其历史转换为可继续加工的批次投入。 */
 export function createProcessedInput(item: ProcessedItem, level: number | null): BatchInput {
   const profile = itemPrimaryProfile(item)
   if (!profile) throw new Error('已处理食材没有组成')
@@ -99,6 +108,7 @@ export function createProcessedInput(item: ProcessedItem, level: number | null):
   }
 }
 
+/** 按食材名称去重，同时保留第一次出现的顺序。 */
 function uniqueIngredients(list: Ingredient[]) {
   const seen = new Set<string>()
   return list.filter((ingredient) => {
@@ -108,22 +118,27 @@ function uniqueIngredients(list: Ingredient[]) {
   })
 }
 
+/** 合并食材大类感官值与具体食材覆盖值。 */
 function ingredientScores(ingredient: Ingredient) {
   return { ...profileSensory[ingredient.profile], ...ingredientSensory[ingredient.name] }
 }
 
+/** 合并食材大类物理特征与具体食材覆盖值。 */
 function ingredientFeatureScores(ingredient: Ingredient) {
   return { ...profileTraits[ingredient.profile], ...ingredientTraits[ingredient.name] }
 }
 
+/** 计算单个产物的最终感官值。 */
 export function calculateSensory(item: Pick<ProcessedItem, 'ingredients' | 'history'>) {
   return calculateSensoryDetails(item).result
 }
 
+/** 计算单个产物，并保留每个基础值和加工反应的贡献明细。 */
 export function calculateSensoryDetails(
   item: Pick<ProcessedItem, 'ingredients' | 'history'>,
 ): SensoryCalculation {
   const contributions: SensoryCalculation['contributions'] = []
+  /** 过滤无效的零值，并把一个有来源说明的贡献加入计算轨迹。 */
   const addContribution = (source: string, contribution: ScoreMap<SenseId>, includeEmpty = false) => {
     const scores = Object.fromEntries(
       Object.entries(contribution).filter(([, value]) => value !== undefined && value !== 0),
@@ -195,6 +210,7 @@ export function calculateSensoryDetails(
   return { contributions, beforeClamp, result }
 }
 
+/** 执行一个批次，消费其输入并生成包含完整历史的新产物。 */
 export function processBatch(inputs: BatchInput[], toolId: string, operationId: string, id: number) {
   if (inputs.length === 0) throw new Error('加工批次不能为空')
   const operation = operations[operationId]
@@ -230,6 +246,7 @@ export function processBatch(inputs: BatchInput[], toolId: string, operationId: 
   return item
 }
 
+/** 汇总所有现存产物，并返回限制与血味遮盖的计算过程。 */
 export function dishSensoryDetails(items: ProcessedItem[]): DishSensoryCalculation {
   const total: ScoreMap<SenseId> = {}
   items.forEach((item) => addMap(total, item.sensory))
@@ -246,10 +263,12 @@ export function dishSensoryDetails(items: ProcessedItem[]): DishSensoryCalculati
   }
 }
 
+/** 返回整道料理应用所有汇总规则后的感官值。 */
 export function dishSensory(items: ProcessedItem[]) {
   return dishSensoryDetails(items).result
 }
 
+/** 汇总每个食材和历史厨具对菜系倾向的贡献。 */
 export function cuisineDetails(items: ProcessedItem[]): CuisineCalculation {
   const scores: ScoreMap = {}
   const itemCalculations = items.map((item) => {
@@ -274,10 +293,12 @@ export function cuisineDetails(items: ProcessedItem[]): CuisineCalculation {
   return { items: itemCalculations, result }
 }
 
+/** 返回按分数降序排列的整菜菜系结果。 */
 export function cuisineScores(items: ProcessedItem[]): CuisineScore[] {
   return cuisineDetails(items).result
 }
 
+/** 选取主要感官特征并附加湿润与干燥的净值描述。 */
 export function sensorySummary(scores: Record<SenseId, number>) {
   const strong = Object.entries(scores)
     .filter(([, value]) => value >= 2)
@@ -293,11 +314,13 @@ export function sensorySummary(scores: Record<SenseId, number>) {
   return `${strong.join('，') || '感官特征较轻'}；${moisture}`
 }
 
+/** 将加工事件转换为“厨具 → 操作”的标题。 */
 export function stepTitle(step: CookingStep) {
   const tool = tools.find((candidate) => candidate.id === step.toolId)
   return `${tool?.name ?? step.toolId} → ${operations[step.operationId]?.label ?? step.operationId}`
 }
 
+/** 将加工事件中每种食材的进度和外观转换为展示文本。 */
 export function stepResults(step: CookingStep) {
   return step.activeNames.map((name) => {
     const level = step.levelsByName[name]

@@ -1,5 +1,7 @@
+/** 渐进式操作在五档进度下的默认及按食材大类覆盖的外观描述。 */
 import type { ProgressModel } from '../types'
 
+/** 以操作 ID 索引的加工进度文本模型。 */
 export const progressModels: Record<string, ProgressModel> = {
   boiled: {
     axis: '吸水、熟化与结构变化',
