@@ -24,6 +24,7 @@ import type {
   CuisineScore,
   DishSensoryCalculation,
   Ingredient,
+  Operation,
   ProcessedItem,
   ProfileId,
   ScoreMap,
@@ -80,9 +81,55 @@ export function itemPrimaryProfile(item: ProcessedItem) {
     ?? item.ingredients[0]?.profile
 }
 
-/** 判断指定操作是否允许投入某个食材大类。 */
-export function isInputCompatible(operationId: string, profile: ProfileId) {
-  return operations[operationId]?.profiles.includes(profile) || false
+/** 判断基础食材是否是 operation 实际加工的主体。 */
+function isIngredientTarget(operation: Operation, ingredient: Ingredient) {
+  return operation.profiles.includes(ingredient.profile)
+    || operation.targetTraits?.some((trait) => (ingredientFeatureScores(ingredient)[trait] ?? 0) > 0)
+    || false
+}
+
+/** 判断一个批次投入是否包含 operation 实际加工的主体。 */
+function isInputTarget(operation: Operation, input: BatchInput) {
+  return operation.profiles.includes(input.profile)
+    || input.ingredients.some((ingredient) => isIngredientTarget(operation, ingredient))
+}
+
+/** 判断批次投入是否会被指定 operation 作为主体加工。 */
+export function isOperationTargetInput(operationId: string, input: BatchInput) {
+  const operation = operations[operationId]
+  return operation ? isInputTarget(operation, input) : false
+}
+
+/** 判断一个批次投入能否作为主体或辅助成分进入 operation。 */
+function isInputCompatible(operation: Operation, input: BatchInput) {
+  return isInputTarget(operation, input) || operation.supportProfiles?.includes(input.profile) || false
+}
+
+/** 返回 operation 对当前批次的首个不满足原因；空批次暂不参与过滤。 */
+export function operationUnavailableReason(operationId: string, inputs: BatchInput[]) {
+  const operation = operations[operationId]
+  if (!operation) return '未知操作'
+  if (inputs.length === 0) return null
+
+  const incompatible = inputs.find((input) => !isInputCompatible(operation, input))
+  if (incompatible) return `不接受${incompatible.label}`
+  if (!inputs.some((input) => isInputTarget(operation, input))) return '缺少可加工的主体食材'
+
+  const ingredientsInBatch = inputs.flatMap((input) => input.ingredients)
+  const missing = operation.requirements?.find((requirement) => {
+    if (requirement.kind === 'profile') {
+      return !ingredientsInBatch.some((ingredient) => requirement.profiles.includes(ingredient.profile))
+    }
+    return !ingredientsInBatch.some((ingredient) =>
+      (ingredientFeatureScores(ingredient)[requirement.trait] ?? 0) >= requirement.minimum,
+    )
+  })
+  return missing?.label ?? null
+}
+
+/** 判断当前批次是否可以执行指定 operation。 */
+export function isOperationAvailable(operationId: string, inputs: BatchInput[]) {
+  return operationUnavailableReason(operationId, inputs) === null
 }
 
 /** 将基础食材转换为尚未执行的批次投入。 */
@@ -163,12 +210,17 @@ export function calculateSensoryDetails(
     const operation = operations[step.operationId]
     if (operation?.kind !== 'progressive') return
 
-    active.forEach((ingredient) => {
+    const targets = active.filter((ingredient) => isIngredientTarget(operation, ingredient))
+    targets.forEach((ingredient) => {
       const level = step.levelsByName[ingredient.name] ?? 0
       const traits = ingredientFeatureScores(ingredient)
       const source = `第 ${stepIndex + 1} 步 ${stepTitle(step)} · ${ingredient.name} ${level}/4`
 
-      addContribution(`${source} · 操作效果`, effectsAtLevel(operation.effects, level))
+      operation.effects
+        .filter((effect) => effect.profiles.includes(ingredient.profile))
+        .forEach((effect) => {
+          addContribution(`${source} · ${effect.label}`, effectsAtLevel(effect.effects, level))
+        })
 
       profileReactions
         .filter((reaction) => reaction.profiles.includes(ingredient.profile))
@@ -224,16 +276,25 @@ export function processBatch(inputs: BatchInput[], toolId: string, operationId: 
   if (inputs.length === 0) throw new Error('加工批次不能为空')
   const operation = operations[operationId]
   if (!operation) throw new Error(`未知操作：${operationId}`)
+  const tool = tools.find((candidate) => candidate.id === toolId)
+  if (!tool) throw new Error(`未知厨具：${toolId}`)
+  if (!tool.operationIds.includes(operationId)) throw new Error(`${tool.name}不能执行${operation.label}`)
+  const unavailableReason = operationUnavailableReason(operationId, inputs)
+  if (unavailableReason) throw new Error(`${operation.label}不可用：${unavailableReason}`)
 
   const itemIngredients = uniqueIngredients(inputs.flatMap((input) => input.ingredients))
   const levelsByName: Record<string, number | null> = {}
   inputs.forEach((input) => input.ingredients.forEach((ingredient) => {
-    levelsByName[ingredient.name] = operation.kind === 'progressive' ? input.level : null
+    levelsByName[ingredient.name] = operation.kind === 'progressive' && isIngredientTarget(operation, ingredient)
+      ? input.level
+      : null
   }))
 
   const appearancesByName = Object.fromEntries(itemIngredients.map((ingredient) => [
     ingredient.name,
-    resolveDescription(operationId, ingredient.profile, levelsByName[ingredient.name]),
+    isIngredientTarget(operation, ingredient)
+      ? resolveDescription(operationId, ingredient.profile, levelsByName[ingredient.name])
+      : `作为${roleFor(ingredient.profile)}参与处理`,
   ]))
   const step: CookingStep = {
     toolId,

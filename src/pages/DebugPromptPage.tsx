@@ -7,7 +7,8 @@ import {
   createRawInput,
   cuisineDetails,
   dishSensoryDetails,
-  isInputCompatible,
+  isOperationAvailable,
+  isOperationTargetInput,
   itemPrimaryProfile,
   resolveDescription,
   roleFor,
@@ -52,24 +53,26 @@ export function DebugPromptPage() {
   const addBatchInput = useCookingStore((state) => state.addBatchInput)
   const removeBatchInput = useCookingStore((state) => state.removeBatchInput)
   const setBatchInputProgress = useCookingStore((state) => state.setBatchInputProgress)
-  const clearBatch = useCookingStore((state) => state.clearBatch)
   const processCurrentBatch = useCookingStore((state) => state.processCurrentBatch)
   const removeProcessedItem = useCookingStore((state) => state.removeProcessedItem)
   const reset = useCookingStore((state) => state.reset)
 
   const tool = tools.find((candidate) => candidate.id === toolId) ?? tools[0]
-  const operation = operations[operationId]
-  const progressive = operation.kind === 'progressive'
-  const compatibleItems = items.filter((item) => {
-    const profile = itemPrimaryProfile(item)
-    return profile && isInputCompatible(operationId, profile)
-  })
-  const compatibleGroups = ingredientGroups
-    .filter((group) => isInputCompatible(operationId, group.profile))
+  const availableOperationIds = tool.operationIds.filter((id) => isOperationAvailable(id, batchInputs))
+  const operation = availableOperationIds.includes(operationId) ? operations[operationId] : undefined
+  const progressive = operation?.kind === 'progressive'
+  const selectedKeys = new Set(batchInputs.map((input) => input.key))
+  const availableItems = items.filter((item) => !selectedKeys.has(`item:${item.id}`))
   const availableValues = [
-    ...compatibleItems.map((item) => `item:${item.id}`),
-    ...compatibleGroups.flatMap((group) => group.names.map((name) => `raw:${name}`)),
+    ...availableItems.map((item) => `item:${item.id}`),
+    ...ingredientGroups.flatMap((group) => group.names
+      .map((name) => `raw:${name}`)
+      .filter((value) => !selectedKeys.has(value))),
   ]
+
+  useEffect(() => {
+    if (!availableOperationIds.includes(operationId)) setOperationId(availableOperationIds[0] ?? '')
+  }, [availableOperationIds, operationId])
 
   useEffect(() => {
     if (!availableValues.includes(ingredientValue)) setIngredientValue(availableValues[0] ?? '')
@@ -86,24 +89,22 @@ export function DebugPromptPage() {
   const cuisineCalculation = cuisineDetails(items)
   const prompt = buildImagePrompt(items)
 
-  /** 切换厨具时同步选择其首个操作，并清空不再适用的批次。 */
+  /** 切换厨具时保留批次，并选择该厨具下首个满足当前批次的操作。 */
   function changeTool(nextToolId: string) {
     const nextTool = tools.find((candidate) => candidate.id === nextToolId) ?? tools[0]
     setToolId(nextTool.id)
-    setOperationId(nextTool.operationIds[0])
-    clearBatch()
+    setOperationId(nextTool.operationIds.find((id) => isOperationAvailable(id, batchInputs)) ?? '')
   }
 
-  /** 切换操作时清空按旧操作建立的批次。 */
+  /** 切换 operation 时保留当前批次及其加工进度。 */
   function changeOperation(nextOperationId: string) {
     setOperationId(nextOperationId)
-    clearBatch()
   }
 
-  /** 将当前选择加入批次；渐进式操作从 0/4 开始。 */
+  /** 将当前选择加入批次；若之后选择渐进 operation，则从 0/4 开始。 */
   function addInput() {
     if (!ingredientValue) return
-    const level = progressive ? 0 : null
+    const level = 0
     if (selectedItem) addBatchInput(createProcessedInput(selectedItem, level))
     else addBatchInput(createRawInput(ingredientValue.slice(4), level))
   }
@@ -139,20 +140,23 @@ export function DebugPromptPage() {
               <label>
                 操作
                 <select value={operationId} onChange={(event) => changeOperation(event.target.value)}>
-                  {tool.operationIds.map((id) => <option key={id} value={id}>{operations[id].label}</option>)}
+                  {availableOperationIds.length === 0 && <option value="">当前批次没有可用操作</option>}
+                  {availableOperationIds.map((id) => <option key={id} value={id}>{operations[id].label}</option>)}
                 </select>
               </label>
               <label>
                 投入食材
                 <select value={ingredientValue} onChange={(event) => setIngredientValue(event.target.value)}>
-                  {compatibleItems.length > 0 && (
+                  {availableItems.length > 0 && (
                     <optgroup label="已处理食材">
-                      {compatibleItems.map((item) => <option key={item.id} value={`item:${item.id}`}>{item.title}</option>)}
+                      {availableItems.map((item) => <option key={item.id} value={`item:${item.id}`}>{item.title}</option>)}
                     </optgroup>
                   )}
-                  {compatibleGroups.map((group) => (
+                  {ingredientGroups.map((group) => (
                     <optgroup key={group.profile} label={profileLabels[group.profile]}>
-                      {group.names.map((name) => <option key={name} value={`raw:${name}`}>{name}</option>)}
+                      {group.names
+                        .filter((name) => !selectedKeys.has(`raw:${name}`))
+                        .map((name) => <option key={name} value={`raw:${name}`}>{name}</option>)}
                     </optgroup>
                   ))}
                 </select>
@@ -170,8 +174,13 @@ export function DebugPromptPage() {
                 <div className="simple-item" key={input.key}>
                   <div>
                     <strong>{input.label}</strong>
-                    <small>{roleFor(input.profile)} · {resolveDescription(operationId, input.profile, input.level)}</small>
-                    {progressive && (
+                    <small>
+                      {roleFor(input.profile)}
+                      {operation && ` · ${isOperationTargetInput(operationId, input)
+                        ? resolveDescription(operationId, input.profile, input.level)
+                        : `作为${roleFor(input.profile)}参与处理`}`}
+                    </small>
+                    {progressive && isOperationTargetInput(operationId, input) && (
                       <label className="inline-field">
                         进度
                         <select value={input.level ?? 0} onChange={(event) => setBatchInputProgress(input.key, Number(event.target.value))}>
@@ -184,7 +193,7 @@ export function DebugPromptPage() {
                 </div>
               ))}
             </div>
-            <button type="button" disabled={batchInputs.length === 0} onClick={() => processCurrentBatch(toolId, operationId)}>执行处理</button>
+            <button type="button" disabled={batchInputs.length === 0 || !operationId} onClick={() => processCurrentBatch(toolId, operationId)}>执行处理</button>
           </section>
 
           <section className="debug-panel">

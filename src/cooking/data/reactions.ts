@@ -11,13 +11,11 @@ import type {
 const dryHeatOperationIds = [
   'pan_fried',
   'stir_fried',
-  'roasted',
   'baked',
   'grilled',
   'deep_fried',
   'toasted',
   'caramelized',
-  'griddled',
 ]
 
 /** 食材大类在所有渐进式加工中共有的反应。 */

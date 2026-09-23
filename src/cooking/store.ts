@@ -12,7 +12,6 @@ interface CookingState {
   addBatchInput: (input: BatchInput) => void
   removeBatchInput: (key: string) => void
   setBatchInputProgress: (key: string, level: number) => void
-  clearBatch: () => void
   processCurrentBatch: (toolId: string, operationId: string) => void
   removeProcessedItem: (id: number) => void
   reset: () => void
@@ -41,8 +40,6 @@ export const useCookingStore = create<CookingState>()(devtools((set) => ({
   setBatchInputProgress: (key, level) => set((state) => ({
     batchInputs: state.batchInputs.map((input) => input.key === key ? { ...input, level } : input),
   }), undefined, 'cooking/setBatchInputProgress'),
-  // 切换厨具或操作时丢弃不再适用的批次草稿。
-  clearBatch: () => set({ batchInputs: [] }, undefined, 'cooking/clearBatch'),
   // 执行当前批次，并用新产物替换被消费的旧产物。
   processCurrentBatch: (toolId, operationId) => set((state) => {
     if (state.batchInputs.length === 0) return state

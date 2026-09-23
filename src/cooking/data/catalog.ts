@@ -43,20 +43,20 @@ export const ingredients: Ingredient[] = ingredientGroups.flatMap(({ profile, na
 
 /** 厨具可用操作和厨具自身提供的菜系倾向。 */
 export const tools: Tool[] = [
-  { id: 'knife', name: '菜刀 + 砧板', operationIds: ['halved', 'sliced_thin', 'sliced_thick', 'strips', 'diced_small', 'diced_large', 'chunks', 'minced'], cuisine: { 中餐: 1, 日料: 1, 法餐: 1 } },
+  { id: 'knife', name: '菜刀 + 砧板', operationIds: ['halved', 'sliced', 'strips', 'diced', 'chunks', 'minced'], cuisine: { 中餐: 1, 日料: 1, 法餐: 1 } },
   { id: 'grater', name: '擦丝器', operationIds: ['grated'], cuisine: { 欧洲菜: 1, 南亚菜: 1, 墨西哥菜: 1 } },
   { id: 'rolling-pin', name: '擀面杖', operationIds: ['flattened', 'rolled'], cuisine: { 中餐: 1, 意大利菜: 1, 南亚菜: 1, 中东菜: 1 } },
   { id: 'mortar', name: '研钵', operationIds: ['crushed', 'ground', 'paste'], cuisine: { 东南亚菜: 2, 南亚菜: 1, 中东菜: 1, 拉美菜: 1 } },
   { id: 'mixing-bowl', name: '搅拌碗', operationIds: ['mixed', 'whipped', 'seasoned'], cuisine: {} },
   { id: 'frying-pan', name: '平底锅', operationIds: ['pan_fried', 'caramelized', 'toasted'], cuisine: {} },
   { id: 'wok', name: '炒锅', operationIds: ['stir_fried', 'toasted'], cuisine: { 中餐: 2, 东南亚菜: 1 } },
-  { id: 'pot', name: '汤锅', operationIds: ['boiled', 'simmered', 'braised', 'poached'], cuisine: {} },
+  { id: 'pot', name: '汤锅', operationIds: ['boiled', 'braised'], cuisine: {} },
   { id: 'steamer', name: '蒸锅', operationIds: ['steamed'], cuisine: { 中餐: 1, 东亚菜: 1, 东南亚菜: 1 } },
-  { id: 'oven', name: '烤箱', operationIds: ['roasted', 'baked'], cuisine: { 欧洲菜: 1, 北美菜: 1, 中东菜: 1 } },
+  { id: 'oven', name: '烤箱', operationIds: ['baked'], cuisine: { 欧洲菜: 1, 北美菜: 1, 中东菜: 1 } },
   { id: 'grill', name: '烤架', operationIds: ['grilled'], cuisine: { 中东菜: 1, 美洲菜: 1, 东亚菜: 1 } },
   { id: 'fryer', name: '油炸锅', operationIds: ['deep_fried'], cuisine: {} },
   { id: 'strainer', name: '滤网', operationIds: ['drained'], cuisine: {} },
   { id: 'skewer', name: '串签', operationIds: ['skewered'], cuisine: { 中东菜: 1, 东亚菜: 1, 南亚菜: 1 } },
-  { id: 'press', name: '压模 / 饼铛', operationIds: ['shaped', 'griddled'], cuisine: { 拉美菜: 1, 南亚菜: 1, 欧洲菜: 1 } },
+  { id: 'press', name: '压模 / 饼铛', operationIds: ['shaped', 'pan_fried'], cuisine: { 拉美菜: 1, 南亚菜: 1, 欧洲菜: 1 } },
   { id: 'brush', name: '刷子', operationIds: ['oiled', 'sauced', 'glazed'], cuisine: { 烧烤菜: 1 } },
 ]

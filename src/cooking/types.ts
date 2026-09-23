@@ -56,21 +56,38 @@ export interface IngredientGroup {
   names: string[]
 }
 
-/** 执行后直接产生固定外观、不记录进度的操作。 */
-export interface InstantOperation {
+/** operation 对整个批次提出的一项必要组成条件。 */
+export type OperationRequirement =
+  | { kind: 'profile', profiles: ProfileId[], label: string }
+  | { kind: 'trait', trait: TraitId, minimum: number, label: string }
+
+/** 一组只作用于指定食材大类的渐进感官变化。 */
+export interface SensoryEffectRule {
   label: string
-  kind: 'instant'
   profiles: ProfileId[]
+  effects: SensoryEffectCurves
+}
+
+/** operation 共有的主体、辅助投入和批次要求。 */
+interface OperationCompatibility {
+  label: string
+  profiles: ProfileId[]
+  targetTraits?: TraitId[]
+  supportProfiles?: ProfileId[]
+  requirements?: OperationRequirement[]
+}
+
+/** 执行后直接产生固定外观、不记录进度的操作。 */
+export interface InstantOperation extends OperationCompatibility {
+  kind: 'instant'
   description: string
 }
 
 /** 根据 0/4 至 4/4 进度解析外观和感官变化的操作。 */
-export interface ProgressiveOperation {
-  label: string
+export interface ProgressiveOperation extends OperationCompatibility {
   kind: 'progressive'
-  profiles: ProfileId[]
   description: ProgressiveDescription
-  effects: SensoryEffectCurves
+  effects: SensoryEffectRule[]
 }
 
 /** 所有操作定义的联合类型。 */
