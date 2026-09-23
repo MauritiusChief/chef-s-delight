@@ -188,15 +188,15 @@ export function processingTags(item: Pick<ProcessedItem, 'history'>): Processing
   const latestHeat = heatSteps.at(-1)?.operation.heat
 
   return {
-    doneness: highestHeat === null ? '未加热' : progressLabel(highestHeat),
-    surface: highestDry === null ? '无' : progressLabel(highestDry),
+    doneness: highestHeat === null ? '未加热' : `${progressLabel(highestHeat)}加工`,
+    surface: highestDry === null ? '无干热处理' : `${progressLabel(highestDry)}受热`,
     moisture: latestHeat === 'wet' ? '偏湿润' : latestHeat === 'dry' ? '偏干爽' : '未体现',
   }
 }
 
 export function processingTagSummary(item: Pick<ProcessedItem, 'history'>) {
   const tags = processingTags(item)
-  return `熟化程度：${tags.doneness}；表面程度：${tags.surface}；含水倾向：${tags.moisture}`
+  return `熟化程度：${tags.doneness}；表面处理：${tags.surface}；含水倾向：${tags.moisture}`
 }
 
 /** 把事实历史压缩成供模型阅读的加工链。 */
