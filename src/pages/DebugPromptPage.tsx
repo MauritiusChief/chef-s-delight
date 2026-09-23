@@ -61,10 +61,10 @@ export function DebugPromptPage() {
   const progressive = operation.kind === 'progressive'
   const compatibleItems = items.filter((item) => {
     const profile = itemPrimaryProfile(item)
-    return profile && isInputCompatible(toolId, operationId, profile)
+    return profile && isInputCompatible(operationId, profile)
   })
   const compatibleGroups = ingredientGroups
-    .filter((group) => isInputCompatible(toolId, operationId, group.profile))
+    .filter((group) => isInputCompatible(operationId, group.profile))
   const availableValues = [
     ...compatibleItems.map((item) => `item:${item.id}`),
     ...compatibleGroups.flatMap((group) => group.names.map((name) => `raw:${name}`)),

@@ -44,7 +44,6 @@ export const ingredients: Ingredient[] = ingredientGroups.flatMap(({ profile, na
 
 const allProfiles = Object.keys(profileLabels) as ProfileId[]
 const solidProfiles = allProfiles.filter((profile) => !['liquid', 'fat', 'seasoning'].includes(profile))
-const cookableProfiles = allProfiles.filter((profile) => !['spice', 'fat'].includes(profile))
 const cuttableProfiles = solidProfiles.filter((profile) => !['spice', 'grain_noodle'].includes(profile))
 
 /** 全部操作及其类型、兼容大类和即时外观描述。 */
@@ -64,28 +63,28 @@ export const operations: Record<string, Operation> = {
   ground: { label: '研磨', kind: 'instant', profiles: ['spice', 'nut_seed'], appearance: '研磨成细颗粒或粉末' },
   paste: { label: '捣成泥', kind: 'instant', profiles: ['spice', 'nut_seed', 'aromatic', 'firm_vegetable', 'fruit'], appearance: '捣成具有细腻质感的泥或酱' },
   mixed: { label: '混合', kind: 'instant', profiles: allProfiles, appearance: '与其他成分均匀混合' },
-  whipped: { label: '打发', kind: 'instant', profiles: ['egg', 'dairy'], appearance: '打发至蓬松并充满细小气泡' },
+  whipped: { label: '打发', kind: 'instant', profiles: ['egg', 'dairy', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'], appearance: '打发至蓬松并充满细小气泡' },
   seasoned: { label: '调味', kind: 'instant', profiles: allProfiles, appearance: '表面均匀附着调味料' },
-  boiled: { label: '水煮', kind: 'progressive', profiles: cookableProfiles },
-  simmered: { label: '慢煮', kind: 'progressive', profiles: cookableProfiles },
-  braised: { label: '炖 / 焖', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'firm_vegetable', 'legume'] },
-  poached: { label: '汆 / 低温水煮', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable'] },
-  steamed: { label: '蒸', kind: 'progressive', profiles: cookableProfiles },
-  pan_fried: { label: '煎', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'leafy_vegetable', 'legume', 'dough'] },
-  caramelized: { label: '焦糖化', kind: 'progressive', profiles: ['firm_vegetable', 'fruit', 'seasoning'] },
-  toasted: { label: '烘香', kind: 'progressive', profiles: ['grain_noodle', 'dough', 'spice', 'nut_seed', 'aromatic'] },
-  stir_fried: { label: '炒', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'leafy_vegetable', 'grain_noodle', 'legume', 'aromatic'] },
-  roasted: { label: '烤制', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'firm_vegetable', 'fruit', 'nut_seed'] },
-  baked: { label: '烘焙', kind: 'progressive', profiles: ['dough', 'egg', 'dairy', 'fruit', 'firm_vegetable'] },
-  grilled: { label: '烧烤 / 炙烤', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'firm_vegetable', 'fruit', 'dough'] },
-  deep_fried: { label: '油炸', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'grain_noodle', 'legume', 'dough'] },
+  boiled: { label: '水煮', kind: 'progressive', profiles: allProfiles },
+  simmered: { label: '慢煮', kind: 'progressive', profiles: allProfiles },
+  braised: { label: '炖 / 焖', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'firm_vegetable', 'legume', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'] },
+  poached: { label: '汆 / 低温水煮', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'] },
+  steamed: { label: '蒸', kind: 'progressive', profiles: allProfiles },
+  pan_fried: { label: '煎', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'leafy_vegetable', 'legume', 'dough', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'] },
+  caramelized: { label: '焦糖化', kind: 'progressive', profiles: ['firm_vegetable', 'fruit', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'] },
+  toasted: { label: '烘香', kind: 'progressive', profiles: ['grain_noodle', 'dough', 'spice', 'nut_seed', 'aromatic', 'seasoning', 'fat', 'liquid'] },
+  stir_fried: { label: '炒', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'leafy_vegetable', 'grain_noodle', 'legume', 'aromatic', 'seasoning', 'spice', 'fat', 'liquid'] },
+  roasted: { label: '烤制', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'firm_vegetable', 'fruit', 'nut_seed', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'] },
+  baked: { label: '烘焙', kind: 'progressive', profiles: ['dough', 'egg', 'dairy', 'fruit', 'firm_vegetable', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'] },
+  grilled: { label: '烧烤 / 炙烤', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'firm_vegetable', 'fruit', 'dough', 'seasoning', 'spice', 'aromatic', 'fat'] },
+  deep_fried: { label: '油炸', kind: 'progressive', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'grain_noodle', 'legume', 'dough', 'seasoning', 'spice', 'aromatic', 'fat'] },
   drained: { label: '沥干', kind: 'instant', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'leafy_vegetable', 'grain_noodle', 'legume'], appearance: '沥去表面和缝隙中的多余水分' },
   skewered: { label: '穿串', kind: 'instant', profiles: ['red_meat', 'poultry', 'fish', 'shellfish', 'firm_vegetable', 'fruit', 'dough'], appearance: '切配后整齐穿在串签上' },
-  shaped: { label: '压制成型', kind: 'instant', profiles: ['dough', 'grain_noodle', 'legume'], appearance: '压制成大小一致的扁平形状' },
-  griddled: { label: '烙制', kind: 'progressive', profiles: ['dough', 'grain_noodle', 'legume'] },
-  oiled: { label: '刷油', kind: 'instant', profiles: solidProfiles, appearance: '表面覆盖薄而均匀的油层' },
-  sauced: { label: '刷酱', kind: 'instant', profiles: solidProfiles, appearance: '表面均匀涂覆一层酱汁' },
-  glazed: { label: '挂汁', kind: 'instant', profiles: solidProfiles, appearance: '表面包裹光亮而均匀的浓稠汁液' },
+  shaped: { label: '压制成型', kind: 'instant', profiles: ['dough', 'grain_noodle', 'legume', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'], appearance: '压制成大小一致的扁平形状' },
+  griddled: { label: '烙制', kind: 'progressive', profiles: ['dough', 'grain_noodle', 'legume', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'] },
+  oiled: { label: '刷油', kind: 'instant', profiles: allProfiles, appearance: '表面覆盖薄而均匀的油层' },
+  sauced: { label: '刷酱', kind: 'instant', profiles: allProfiles, appearance: '表面均匀涂覆一层酱汁' },
+  glazed: { label: '挂汁', kind: 'instant', profiles: allProfiles, appearance: '表面包裹光亮而均匀的浓稠汁液' },
 }
 
 /** 厨具可用操作和厨具自身提供的菜系倾向。 */
@@ -107,17 +106,3 @@ export const tools: Tool[] = [
   { id: 'press', name: '压模 / 饼铛', operationIds: ['shaped', 'griddled'], cuisine: { 拉美菜: 1, 南亚菜: 1, 欧洲菜: 1 } },
   { id: 'brush', name: '刷子', operationIds: ['oiled', 'sauced', 'glazed'], cuisine: { 烧烤菜: 1 } },
 ]
-
-/** 厨具允许额外加入、不受操作主体兼容范围限制的辅助食材大类。 */
-export const supportByTool: Record<string, ProfileId[]> = {
-  'mixing-bowl': ['seasoning', 'spice', 'aromatic', 'fat', 'liquid', 'dairy'],
-  'frying-pan': ['seasoning', 'spice', 'aromatic', 'fat', 'liquid'],
-  wok: ['seasoning', 'spice', 'aromatic', 'fat', 'liquid'],
-  pot: ['seasoning', 'spice', 'aromatic', 'fat', 'liquid'],
-  steamer: ['seasoning', 'spice', 'aromatic', 'fat', 'liquid'],
-  oven: ['seasoning', 'spice', 'aromatic', 'fat', 'liquid'],
-  grill: ['seasoning', 'spice', 'aromatic', 'fat'],
-  fryer: ['seasoning', 'spice', 'aromatic', 'fat'],
-  press: ['seasoning', 'spice', 'aromatic', 'fat', 'liquid'],
-  brush: ['seasoning', 'fat', 'liquid'],
-}

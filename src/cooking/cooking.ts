@@ -1,5 +1,5 @@
 /** 烹饪领域规则：处理兼容性、加工事件、感官、菜系和调试明细。 */
-import { ingredients, operations, profileLabels, supportByTool, tools } from './data/catalog'
+import { ingredients, operations, profileLabels, tools } from './data/catalog'
 import { progressModels } from './data/progress'
 import {
   ingredientCuisine,
@@ -70,11 +70,9 @@ export function itemPrimaryProfile(item: ProcessedItem) {
     ?? item.ingredients[0]?.profile
 }
 
-/** 判断食材大类能否作为主体或辅助投入参与指定加工。 */
-export function isInputCompatible(toolId: string, operationId: string, profile: ProfileId) {
-  return operations[operationId]?.profiles.includes(profile)
-    || supportByTool[toolId]?.includes(profile)
-    || false
+/** 判断指定操作是否允许投入某个食材大类。 */
+export function isInputCompatible(operationId: string, profile: ProfileId) {
+  return operations[operationId]?.profiles.includes(profile) || false
 }
 
 /** 将基础食材转换为尚未执行的批次投入。 */
