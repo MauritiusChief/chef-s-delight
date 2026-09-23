@@ -71,18 +71,12 @@ export function isOperationTargetInput(operationId: string, input: BatchInput) {
   return operation ? isInputTarget(operation, input) : false
 }
 
-function isInputCompatible(operation: Operation, input: BatchInput) {
-  return isInputTarget(operation, input) || operation.supportProfiles?.includes(input.profile) || false
-}
-
 /** 返回 operation 对当前批次的首个不满足原因；空批次暂不参与过滤。 */
 export function operationUnavailableReason(operationId: string, inputs: BatchInput[]) {
   const operation = operations[operationId]
   if (!operation) return '未知操作'
   if (inputs.length === 0) return null
 
-  const incompatible = inputs.find((input) => !isInputCompatible(operation, input))
-  if (incompatible) return `不接受${incompatible.label}`
   if (!inputs.some((input) => isInputTarget(operation, input))) return '缺少可加工的主体食材'
 
   const ingredientsInBatch = inputs.flatMap((input) => input.ingredients)
