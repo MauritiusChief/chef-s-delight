@@ -16,6 +16,8 @@ const cuttableProfiles = solidProfiles.filter((profile) => !['spice', 'grain_noo
 const heatedFoodProfiles = allProfiles.filter((profile) => !['liquid', 'fat', 'seasoning', 'spice'].includes(profile))
 const dryableProfiles = allProfiles.filter((profile) => !['liquid', 'fat', 'seasoning'].includes(profile))
 const crispableProfiles = allProfiles.filter((profile) => !['liquid', 'fat', 'seasoning', 'spice'].includes(profile))
+const marinatableProfiles: ProfileId[] = ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'leafy_vegetable', 'legume', 'fruit']
+const brushableProfiles = heatedFoodProfiles
 
 const liquidRequirement: OperationRequirement = {
   kind: 'profile', profiles: ['liquid'], label: '需要水或其他液体',
@@ -25,6 +27,12 @@ const fatRequirement: OperationRequirement = {
 }
 const sugarRequirement: OperationRequirement = {
   kind: 'trait', trait: 'sugar', minimum: 1, label: '需要含糖成分',
+}
+const marinadeRequirement: OperationRequirement = {
+  kind: 'profile', profiles: ['seasoning', 'spice'], label: '需要调味料或香辛料',
+}
+const sauceRequirement: OperationRequirement = {
+  kind: 'profile', profiles: ['seasoning'], label: '需要酱料或其他调味料',
 }
 
 /** 湿热操作共有的含水变化。 */
@@ -48,12 +56,36 @@ const brownedSurfaceEffects: SensoryEffectRule[] = [{
   effects: { crisp: [0, 0, 1, 2, 3] },
 }]
 
-/** 创建即时操作，使操作表中的重复字段保持简洁。 */
-function instant(label: string, profiles: ProfileId[], description: string): InstantOperation {
-  return { label, kind: 'instant', profiles, description }
+/**
+ * 创建执行后立即完成、没有加工进度的 operation。
+ *
+ * @param label 选择器、历史记录和提示词中使用的操作名称。
+ * @param profiles 可以作为实际加工主体的食材大类；批次至少要包含一个主体。
+ * @param description 应用于主体食材的加工结果描述，辅助投入不会使用此描述。
+ * @param supportProfiles 可以随主体加入批次、但不接受操作效果的辅助食材大类；允许加入不代表必须加入。
+ * @param requirements 整个批次必须满足的组成条件；存在多项时需要全部满足。
+ */
+function instant(
+  label: string,
+  profiles: ProfileId[],
+  description: string,
+  supportProfiles: ProfileId[] = [],
+  requirements: OperationRequirement[] = [],
+): InstantOperation {
+  return { label, kind: 'instant', profiles, supportProfiles, requirements, description }
 }
 
-/** 创建渐进式操作，并将五档描述绑定到操作本身。 */
+/**
+ * 创建具有 0/4 至 4/4 加工进度的 operation。
+ *
+ * @param label 选择器、历史记录和提示词中使用的操作名称。
+ * @param profiles 可以作为实际加工主体的食材大类；批次至少要包含一个主体。
+ * @param description 五档通用外观描述及可选的食材大类专属描述。
+ * @param effects 感官变化规则；每条规则只作用于其 `profiles` 声明的大类。
+ * @param supportProfiles 可以随主体加入批次、但不接受主体描述或操作效果的辅助大类；允许加入不代表必须加入。
+ * @param requirements 整个批次必须满足的组成条件；存在多项时需要全部满足。
+ * @param targetTraits 除 `profiles` 外也可成为加工主体的物理特征，例如让糖作为焦糖化主体。
+ */
 function progressive(
   label: string,
   profiles: ProfileId[],
@@ -82,7 +114,7 @@ export const operations: Record<string, Operation> = {
   paste: instant('捣成泥', ['spice', 'nut_seed', 'aromatic', 'firm_vegetable', 'fruit'], '捣成具有细腻质感的泥或酱'),
   mixed: instant('混合', allProfiles, '与其他成分均匀混合'),
   whipped: instant('打发', ['egg', 'dairy', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'], '打发至蓬松并充满细小气泡'),
-  seasoned: instant('调味', allProfiles, '表面均匀附着调味料'),
+  marinated: instant('腌制', marinatableProfiles, '与腌料充分拌匀并腌制入味', ['seasoning', 'spice', 'aromatic', 'fat', 'liquid', 'dairy'], [marinadeRequirement]),
 
   boiled: progressive('煮 / 汆煮', heatedFoodProfiles, {
     levels: ['生鲜，保持原始结构', '表层开始受热，内部仍接近生鲜状态', '已经煮熟，整体结构完整', '充分软化，结构开始松散', '经过长时间煮制，结构明显分解'],
@@ -163,7 +195,6 @@ export const operations: Record<string, Operation> = {
   drained: instant('沥干', ['red_meat', 'poultry', 'fish', 'shellfish', 'egg', 'firm_vegetable', 'leafy_vegetable', 'grain_noodle', 'legume'], '沥去表面和缝隙中的多余水分'),
   skewered: instant('穿串', ['red_meat', 'poultry', 'fish', 'shellfish', 'firm_vegetable', 'fruit', 'dough'], '切配后整齐穿在串签上'),
   shaped: instant('压制成型', ['dough', 'grain_noodle', 'legume', 'seasoning', 'spice', 'aromatic', 'fat', 'liquid'], '压制成大小一致的扁平形状'),
-  oiled: instant('刷油', allProfiles, '表面覆盖薄而均匀的油层'),
-  sauced: instant('刷酱', allProfiles, '表面均匀涂覆一层酱汁'),
-  glazed: instant('挂汁', allProfiles, '表面包裹光亮而均匀的浓稠汁液'),
+  oiled: instant('刷油', brushableProfiles, '表面覆盖薄而均匀的油层', ['fat']),
+  sauced: instant('刷酱 / 挂汁', brushableProfiles, '表面均匀覆盖一层酱汁', ['seasoning', 'spice', 'fat', 'liquid'], [sauceRequirement]),
 }

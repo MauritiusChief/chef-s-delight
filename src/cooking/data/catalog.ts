@@ -47,7 +47,7 @@ export const tools: Tool[] = [
   { id: 'grater', name: '擦丝器', operationIds: ['grated'], cuisine: { 欧洲菜: 1, 南亚菜: 1, 墨西哥菜: 1 } },
   { id: 'rolling-pin', name: '擀面杖', operationIds: ['flattened', 'rolled'], cuisine: { 中餐: 1, 意大利菜: 1, 南亚菜: 1, 中东菜: 1 } },
   { id: 'mortar', name: '研钵', operationIds: ['crushed', 'ground', 'paste'], cuisine: { 东南亚菜: 2, 南亚菜: 1, 中东菜: 1, 拉美菜: 1 } },
-  { id: 'mixing-bowl', name: '搅拌碗', operationIds: ['mixed', 'whipped', 'seasoned'], cuisine: {} },
+  { id: 'mixing-bowl', name: '搅拌碗', operationIds: ['mixed', 'whipped', 'marinated'], cuisine: {} },
   { id: 'frying-pan', name: '平底锅', operationIds: ['pan_fried', 'caramelized', 'toasted'], cuisine: {} },
   { id: 'wok', name: '炒锅', operationIds: ['stir_fried', 'toasted'], cuisine: { 中餐: 2, 东南亚菜: 1 } },
   { id: 'pot', name: '汤锅', operationIds: ['boiled', 'braised'], cuisine: {} },
@@ -58,5 +58,5 @@ export const tools: Tool[] = [
   { id: 'strainer', name: '滤网', operationIds: ['drained'], cuisine: {} },
   { id: 'skewer', name: '串签', operationIds: ['skewered'], cuisine: { 中东菜: 1, 东亚菜: 1, 南亚菜: 1 } },
   { id: 'press', name: '压模 / 饼铛', operationIds: ['shaped', 'pan_fried'], cuisine: { 拉美菜: 1, 南亚菜: 1, 欧洲菜: 1 } },
-  { id: 'brush', name: '刷子', operationIds: ['oiled', 'sauced', 'glazed'], cuisine: { 烧烤菜: 1 } },
+  { id: 'brush', name: '刷子', operationIds: ['oiled', 'sauced'], cuisine: { 烧烤菜: 1 } },
 ]
