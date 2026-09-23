@@ -108,3 +108,42 @@ export interface CuisineScore {
   name: string
   score: number
 }
+
+export interface SensoryContribution {
+  source: string
+  scores: ScoreMap<SenseId>
+}
+
+export interface SensoryCalculation {
+  contributions: SensoryContribution[]
+  beforeClamp: Record<SenseId, number>
+  result: Record<SenseId, number>
+}
+
+export interface DishSensoryCalculation {
+  itemContributions: Array<{
+    itemId: number
+    title: string
+    scores: Record<SenseId, number>
+  }>
+  summed: Record<SenseId, number>
+  clamped: Record<SenseId, number>
+  bloodyMask: number
+  result: Record<SenseId, number>
+}
+
+export interface CuisineContribution {
+  source: string
+  scores: ScoreMap
+}
+
+export interface ItemCuisineCalculation {
+  itemId: number
+  title: string
+  contributions: CuisineContribution[]
+}
+
+export interface CuisineCalculation {
+  items: ItemCuisineCalculation[]
+  result: CuisineScore[]
+}

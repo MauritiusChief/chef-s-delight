@@ -1,4 +1,4 @@
-import { ingredients, operations, supportByTool, tools } from './data/catalog'
+import { ingredients, operations, profileLabels, supportByTool, tools } from './data/catalog'
 import { progressModels } from './data/progress'
 import {
   ingredientCuisine,
@@ -12,11 +12,14 @@ import {
 import type {
   BatchInput,
   CookingStep,
+  CuisineCalculation,
   CuisineScore,
+  DishSensoryCalculation,
   Ingredient,
   ProcessedItem,
   ProfileId,
   ScoreMap,
+  SensoryCalculation,
   SenseId,
 } from './types'
 
@@ -114,42 +117,59 @@ function ingredientFeatureScores(ingredient: Ingredient) {
 }
 
 export function calculateSensory(item: Pick<ProcessedItem, 'ingredients' | 'history'>) {
-  const scores: ScoreMap<SenseId> = {}
-  item.ingredients.forEach((ingredient) => addMap(scores, ingredientScores(ingredient)))
+  return calculateSensoryDetails(item).result
+}
 
-  item.history.forEach((step) => {
+export function calculateSensoryDetails(
+  item: Pick<ProcessedItem, 'ingredients' | 'history'>,
+): SensoryCalculation {
+  const contributions: SensoryCalculation['contributions'] = []
+  const addContribution = (source: string, contribution: ScoreMap<SenseId>, includeEmpty = false) => {
+    const scores = Object.fromEntries(
+      Object.entries(contribution).filter(([, value]) => value !== undefined && value !== 0),
+    ) as ScoreMap<SenseId>
+    if (includeEmpty || Object.keys(scores).length > 0) contributions.push({ source, scores })
+  }
+
+  item.ingredients.forEach((ingredient) => {
+    addContribution(`${ingredient.name}基础（${profileLabels[ingredient.profile]}）`, ingredientScores(ingredient), true)
+  })
+
+  item.history.forEach((step, stepIndex) => {
     const active = item.ingredients.filter((ingredient) => step.activeNames.includes(ingredient.name))
     if (operations[step.operationId]?.kind !== 'progressive') return
 
     active.forEach((ingredient) => {
       const level = step.levelsByName[ingredient.name] ?? 0
       const traits = ingredientFeatureScores(ingredient)
+      const adjustment: ScoreMap<SenseId> = {}
 
       if (['red_meat', 'poultry', 'fish', 'shellfish'].includes(ingredient.profile)) {
-        scores.bloody = (scores.bloody ?? 0) - [0, 1, 4, 5, 5][level]
+        adjustment.bloody = -[0, 1, 4, 5, 5][level]
       }
       if (wetHeat.has(step.operationId)) {
-        scores.moist = (scores.moist ?? 0) + [0, 1, 2, 3, 3][level]
-        if (level >= 3) scores.dry = (scores.dry ?? 0) + level - 3
+        adjustment.moist = (adjustment.moist ?? 0) + [0, 1, 2, 3, 3][level]
+        if (level >= 3) adjustment.dry = (adjustment.dry ?? 0) + level - 3
       }
       if (dryHeat.has(step.operationId)) {
-        scores.moist = (scores.moist ?? 0) - [0, 0, 1, 2, 3][level]
-        scores.dry = (scores.dry ?? 0) + [0, 0, 0, 1, 3][level]
-        scores.roasted = (scores.roasted ?? 0) + [0, 1, 2, 3, 4][level]
+        adjustment.moist = (adjustment.moist ?? 0) - [0, 0, 1, 2, 3][level]
+        adjustment.dry = (adjustment.dry ?? 0) + [0, 0, 0, 1, 3][level]
+        adjustment.roasted = (adjustment.roasted ?? 0) + [0, 1, 2, 3, 4][level]
       }
-      if (step.operationId === 'grilled') scores.smoky = (scores.smoky ?? 0) + [0, 1, 2, 3, 4][level]
-      if (step.operationId === 'deep_fried') scores.crisp = (scores.crisp ?? 0) + [0, 1, 3, 4, 5][level]
+      if (step.operationId === 'grilled') adjustment.smoky = (adjustment.smoky ?? 0) + [0, 1, 2, 3, 4][level]
+      if (step.operationId === 'deep_fried') adjustment.crisp = (adjustment.crisp ?? 0) + [0, 1, 3, 4, 5][level]
       if (['baked', 'roasted', 'pan_fried', 'griddled'].includes(step.operationId) && level >= 2) {
-        scores.crisp = (scores.crisp ?? 0) + level - 1
+        adjustment.crisp = (adjustment.crisp ?? 0) + level - 1
       }
       if ((traits.sugar ?? 0) > 0 && dryHeat.has(step.operationId) && level >= 2) {
-        scores.sweet = (scores.sweet ?? 0) + 1
-        scores.roasted = (scores.roasted ?? 0) + Math.min(2, level - 1)
+        adjustment.sweet = (adjustment.sweet ?? 0) + 1
+        adjustment.roasted = (adjustment.roasted ?? 0) + Math.min(2, level - 1)
       }
       if (['大蒜', '姜'].includes(ingredient.name) && level >= 1) {
-        scores.pungent = (scores.pungent ?? 0) - Math.min(2, level)
-        scores.aromatic = (scores.aromatic ?? 0) + Math.min(3, level)
+        adjustment.pungent = (adjustment.pungent ?? 0) - Math.min(2, level)
+        adjustment.aromatic = (adjustment.aromatic ?? 0) + Math.min(3, level)
       }
+      addContribution(`第 ${stepIndex + 1} 步 ${stepTitle(step)} · ${ingredient.name} ${level}/4`, adjustment)
     })
 
     const hasFat = active.some((ingredient) => (ingredientFeatureScores(ingredient).fat ?? 0) > 0)
@@ -157,11 +177,22 @@ export function calculateSensory(item: Pick<ProcessedItem, 'ingredients' | 'hist
       .filter((ingredient) => (ingredientFeatureScores(ingredient).protein ?? 0) > 0)
       .map((ingredient) => step.levelsByName[ingredient.name] ?? 0))
     if (hasFat && dryHeat.has(step.operationId) && proteinHeat >= 2) {
-      scores.roasted = (scores.roasted ?? 0) + Math.min(3, proteinHeat - 1)
+      addContribution(
+        `第 ${stepIndex + 1} 步 ${stepTitle(step)} · 油脂与蛋白质批次反应`,
+        { roasted: Math.min(3, proteinHeat - 1) },
+      )
     }
   })
 
-  return Object.fromEntries(senseIds.map((sense) => [sense, clamp(scores[sense] ?? 0)])) as Record<SenseId, number>
+  const totals: ScoreMap<SenseId> = {}
+  contributions.forEach((contribution) => addMap(totals, contribution.scores))
+  const beforeClamp = Object.fromEntries(
+    senseIds.map((sense) => [sense, totals[sense] ?? 0]),
+  ) as Record<SenseId, number>
+  const result = Object.fromEntries(
+    senseIds.map((sense) => [sense, clamp(beforeClamp[sense])]),
+  ) as Record<SenseId, number>
+  return { contributions, beforeClamp, result }
 }
 
 export function processBatch(inputs: BatchInput[], toolId: string, operationId: string, id: number) {
@@ -199,23 +230,52 @@ export function processBatch(inputs: BatchInput[], toolId: string, operationId: 
   return item
 }
 
-export function dishSensory(items: ProcessedItem[]) {
+export function dishSensoryDetails(items: ProcessedItem[]): DishSensoryCalculation {
   const total: ScoreMap<SenseId> = {}
   items.forEach((item) => addMap(total, item.sensory))
-  const result = Object.fromEntries(senseIds.map((sense) => [sense, clamp(total[sense] ?? 0)])) as Record<SenseId, number>
-  result.bloody = clamp(result.bloody - Math.floor(result.pungent * 0.3 + result.spicy * 0.2 + result.sour * 0.4 + result.aromatic * 0.2))
-  return result
+  const summed = Object.fromEntries(senseIds.map((sense) => [sense, total[sense] ?? 0])) as Record<SenseId, number>
+  const clamped = Object.fromEntries(senseIds.map((sense) => [sense, clamp(summed[sense])])) as Record<SenseId, number>
+  const bloodyMask = Math.floor(clamped.pungent * 0.3 + clamped.spicy * 0.2 + clamped.sour * 0.4 + clamped.aromatic * 0.2)
+  const result = { ...clamped, bloody: clamp(clamped.bloody - bloodyMask) }
+  return {
+    itemContributions: items.map((item) => ({ itemId: item.id, title: item.title, scores: item.sensory })),
+    summed,
+    clamped,
+    bloodyMask,
+    result,
+  }
+}
+
+export function dishSensory(items: ProcessedItem[]) {
+  return dishSensoryDetails(items).result
+}
+
+export function cuisineDetails(items: ProcessedItem[]): CuisineCalculation {
+  const scores: ScoreMap = {}
+  const itemCalculations = items.map((item) => {
+    const contributions: CuisineCalculation['items'][number]['contributions'] = []
+    item.ingredients.forEach((ingredient) => {
+      const contribution = ingredientCuisine[ingredient.name] ?? {}
+      contributions.push({ source: `食材：${ingredient.name}`, scores: contribution })
+      addMap(scores, contribution)
+    })
+    item.history.forEach((step, index) => {
+      const tool = tools.find((candidate) => candidate.id === step.toolId)
+      if (tool) {
+        contributions.push({ source: `第 ${index + 1} 步厨具：${tool.name}`, scores: tool.cuisine })
+        addMap(scores, tool.cuisine)
+      }
+    })
+    return { itemId: item.id, title: item.title, contributions }
+  })
+  const result: CuisineScore[] = Object.entries(scores)
+    .map(([name, score]) => ({ name, score: score ?? 0 }))
+    .sort((left, right) => right.score - left.score)
+  return { items: itemCalculations, result }
 }
 
 export function cuisineScores(items: ProcessedItem[]): CuisineScore[] {
-  const scores: ScoreMap = {}
-  items.forEach((item) => {
-    item.ingredients.forEach((ingredient) => addMap(scores, ingredientCuisine[ingredient.name]))
-    item.history.forEach((step) => addMap(scores, tools.find((tool) => tool.id === step.toolId)?.cuisine))
-  })
-  return Object.entries(scores)
-    .map(([name, score]) => ({ name, score: score ?? 0 }))
-    .sort((left, right) => right.score - left.score)
+  return cuisineDetails(items).result
 }
 
 export function sensorySummary(scores: Record<SenseId, number>) {
