@@ -14,7 +14,7 @@ import {
   stepResults,
   stepTitle,
 } from '../cooking/cooking'
-import { ingredientGroups, ingredients, operations, tools } from '../cooking/data/catalog'
+import { ingredientGroups, ingredients, operations, profileLabels, tools } from '../cooking/data/catalog'
 import { senseLabels } from '../cooking/data/sensory'
 import { buildImagePrompt } from '../cooking/prompt'
 import { useCookingStore } from '../cooking/store'
@@ -150,7 +150,7 @@ export function DebugPromptPage() {
                     </optgroup>
                   )}
                   {compatibleGroups.map((group) => (
-                    <optgroup key={group.label} label={group.label}>
+                    <optgroup key={group.profile} label={profileLabels[group.profile]}>
                       {group.names.map((name) => <option key={name} value={`raw:${name}`}>{name}</option>)}
                     </optgroup>
                   ))}

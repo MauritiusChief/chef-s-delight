@@ -47,13 +47,11 @@ export type ScoreMap<K extends string = string> = Partial<Record<K, number>>
 /** 一种可投入加工的基础食材。 */
 export interface Ingredient {
   name: string
-  group: string
   profile: ProfileId
 }
 
-/** 选择器中的食材展示分组。 */
+/** 同一烹饪大类下供选择器展示的食材名称。 */
 export interface IngredientGroup {
-  label: string
   profile: ProfileId
   names: string[]
 }

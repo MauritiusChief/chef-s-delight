@@ -17,29 +17,29 @@ export const profileLabels: Record<ProfileId, string> = {
 
 /** 供选择器展示的食材分组及其所属烹饪大类。 */
 export const ingredientGroups: IngredientGroup[] = [
-  { label: '红肉', profile: 'red_meat', names: ['牛肉', '猪肉', '羊肉'] },
-  { label: '禽肉', profile: 'poultry', names: ['鸡肉', '鸡腿', '鸡翅'] },
-  { label: '鱼类', profile: 'fish', names: ['白肉鱼', '三文鱼'] },
-  { label: '其他海鲜', profile: 'shellfish', names: ['虾', '鱿鱼'] },
-  { label: '蛋', profile: 'egg', names: ['鸡蛋'] },
-  { label: '豆类蛋白', profile: 'legume', names: ['豆腐', '鹰嘴豆', '扁豆', '黑豆'] },
-  { label: '主食谷物', profile: 'grain_noodle', names: ['米饭', '小麦面条', '意面', '米粉'] },
-  { label: '面团', profile: 'dough', names: ['面包', '饼皮', '披萨面团', '玉米饼'] },
-  { label: '结实蔬菜', profile: 'firm_vegetable', names: ['土豆', '胡萝卜', '红薯', '洋葱', '番茄', '甜椒', '辣椒', '茄子', '西兰花', '菜花', '黄瓜', '蘑菇', '玉米'] },
-  { label: '叶菜', profile: 'leafy_vegetable', names: ['菠菜', '生菜', '白菜', '卷心菜'] },
-  { label: '芳香食材', profile: 'aromatic', names: ['大蒜', '葱', '姜', '香菜', '欧芹', '罗勒', '薄荷'] },
-  { label: '水果', profile: 'fruit', names: ['柠檬', '青柠', '苹果', '香蕉', '牛油果'] },
-  { label: '乳制品', profile: 'dairy', names: ['牛奶', '奶油', '黄油', '奶酪', '酸奶'] },
-  { label: '坚果种子', profile: 'nut_seed', names: ['花生', '芝麻', '腰果'] },
-  { label: '基础液体', profile: 'liquid', names: ['水', '高汤', '椰奶'] },
-  { label: '基础油脂', profile: 'fat', names: ['植物油', '橄榄油'] },
-  { label: '调味料', profile: 'seasoning', names: ['盐', '糖', '酱油', '醋', '辣椒酱', '番茄酱'] },
-  { label: '香辛料', profile: 'spice', names: ['黑胡椒', '孜然', '辣椒粉', '咖喱香料', '肉桂'] },
+  { profile: 'red_meat', names: ['牛肉', '猪肉', '羊肉'] },
+  { profile: 'poultry', names: ['鸡肉', '鸡腿', '鸡翅'] },
+  { profile: 'fish', names: ['白肉鱼', '三文鱼'] },
+  { profile: 'shellfish', names: ['虾', '鱿鱼'] },
+  { profile: 'egg', names: ['鸡蛋'] },
+  { profile: 'legume', names: ['豆腐', '鹰嘴豆', '扁豆', '黑豆'] },
+  { profile: 'grain_noodle', names: ['米饭', '小麦面条', '意面', '米粉'] },
+  { profile: 'dough', names: ['面包', '饼皮', '披萨面团', '玉米饼'] },
+  { profile: 'firm_vegetable', names: ['土豆', '胡萝卜', '红薯', '洋葱', '番茄', '甜椒', '辣椒', '茄子', '西兰花', '菜花', '黄瓜', '蘑菇', '玉米'] },
+  { profile: 'leafy_vegetable', names: ['菠菜', '生菜', '白菜', '卷心菜'] },
+  { profile: 'aromatic', names: ['大蒜', '葱', '姜', '香菜', '欧芹', '罗勒', '薄荷'] },
+  { profile: 'fruit', names: ['柠檬', '青柠', '苹果', '香蕉', '牛油果'] },
+  { profile: 'dairy', names: ['牛奶', '奶油', '黄油', '奶酪', '酸奶'] },
+  { profile: 'nut_seed', names: ['花生', '芝麻', '腰果'] },
+  { profile: 'liquid', names: ['水', '高汤', '椰奶'] },
+  { profile: 'fat', names: ['植物油', '橄榄油'] },
+  { profile: 'seasoning', names: ['盐', '糖', '酱油', '醋', '辣椒酱', '番茄酱'] },
+  { profile: 'spice', names: ['黑胡椒', '孜然', '辣椒粉', '咖喱香料', '肉桂'] },
 ]
 
 /** 将展示分组展开成计算层使用的独立食材记录。 */
-export const ingredients: Ingredient[] = ingredientGroups.flatMap(({ label, profile, names }) =>
-  names.map((name) => ({ name, group: label, profile })),
+export const ingredients: Ingredient[] = ingredientGroups.flatMap(({ profile, names }) =>
+  names.map((name) => ({ name, profile })),
 )
 
 const allProfiles = Object.keys(profileLabels) as ProfileId[]
