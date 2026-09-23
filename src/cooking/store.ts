@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { processBatch } from './cooking'
-import type { BatchInput, ProcessedItem } from './types'
+import type { BatchInput, PlatingRoleId, ProcessedItem } from './types'
 
 /** 调试器可变状态以及页面能够触发的状态操作。 */
 interface CookingState {
@@ -13,6 +13,7 @@ interface CookingState {
   removeBatchInput: (key: string) => void
   setBatchInputProgress: (key: string, level: number) => void
   processCurrentBatch: (toolId: string, operationId: string) => void
+  setProcessedItemPlatingRole: (id: number, role: PlatingRoleId | null) => void
   removeProcessedItem: (id: number) => void
   reset: () => void
 }
@@ -51,6 +52,10 @@ export const useCookingStore = create<CookingState>()(devtools((set) => ({
       nextItemId: state.nextItemId + 1,
     }
   }, undefined, 'cooking/processCurrentBatch'),
+  // 设置产物在最终成品中的结构与摆盘功能。
+  setProcessedItemPlatingRole: (id, role) => set((state) => ({
+    items: state.items.map((item) => item.id === id ? { ...item, platingRole: role } : item),
+  }), undefined, 'cooking/setProcessedItemPlatingRole'),
   // 删除产物，同时清除仍然引用它的批次投入。
   removeProcessedItem: (id) => set((state) => ({
     items: state.items.filter((item) => item.id !== id),

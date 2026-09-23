@@ -17,10 +17,11 @@ import {
 } from '../cooking/cooking'
 import { ingredientGroups, ingredients, profileLabels, tools } from '../cooking/data/catalog'
 import { operations } from '../cooking/data/operations'
+import { platingRoles } from '../cooking/data/plating'
 import { senseLabels } from '../cooking/data/sensory'
 import { buildEvaluationPrompt, buildImagePrompt } from '../cooking/prompt'
 import { useCookingStore } from '../cooking/store'
-import type { ScoreMap, SenseId } from '../cooking/types'
+import type { PlatingRoleId, ScoreMap, SenseId } from '../cooking/types'
 import '../styles/debug-prompt.css'
 
 const levels = [0, 1, 2, 3, 4]
@@ -54,6 +55,7 @@ export function DebugPromptPage() {
   const removeBatchInput = useCookingStore((state) => state.removeBatchInput)
   const setBatchInputProgress = useCookingStore((state) => state.setBatchInputProgress)
   const processCurrentBatch = useCookingStore((state) => state.processCurrentBatch)
+  const setProcessedItemPlatingRole = useCookingStore((state) => state.setProcessedItemPlatingRole)
   const removeProcessedItem = useCookingStore((state) => state.removeProcessedItem)
   const reset = useCookingStore((state) => state.reset)
 
@@ -205,6 +207,19 @@ export function DebugPromptPage() {
                 <div className="simple-item" key={item.id}>
                   <div>
                     <strong>{item.title}</strong>
+                    <label className="plating-role-field">
+                      在料理中作为
+                      <select
+                        value={item.platingRole ?? ''}
+                        onChange={(event) => setProcessedItemPlatingRole(
+                          item.id,
+                          event.target.value ? event.target.value as PlatingRoleId : null,
+                        )}
+                      >
+                        <option value="">请选择</option>
+                        {platingRoles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}
+                      </select>
+                    </label>
                     <small>组成：{item.ingredients.map((ingredient) => ingredient.name).join('、')}</small>
                     <ol className="history">
                       {item.history.map((step, index) => (

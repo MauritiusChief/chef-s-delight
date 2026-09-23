@@ -41,6 +41,9 @@ export type SenseId =
 /** 用于触发糖化、蛋白质与油脂反应的物理特征。 */
 export type TraitId = 'protein' | 'fat' | 'water' | 'sugar' | 'starch'
 
+/** 产物在最终成品中的主要结构与摆盘功能。 */
+export type PlatingRoleId = 'base' | 'main' | 'covering' | 'side' | 'sauce' | 'garnish'
+
 /** 可只填写有贡献项目的通用数值映射。 */
 export type ScoreMap<K extends string = string> = Partial<Record<K, number>>
 
@@ -165,13 +168,14 @@ export interface CookingStep {
   appearancesByName: Record<string, string>
 }
 
-/** 可继续投入加工的产物，包含组成、完整历史和当前感官值。 */
+/** 可继续投入加工的产物，包含组成、完整历史、感官值和可选摆盘角色。 */
 export interface ProcessedItem {
   id: number
   title: string
   ingredients: Ingredient[]
   history: CookingStep[]
   sensory: Record<SenseId, number>
+  platingRole: PlatingRoleId | null
 }
 
 /** 尚未执行的批次投入，可以来自基础食材或已有产物。 */

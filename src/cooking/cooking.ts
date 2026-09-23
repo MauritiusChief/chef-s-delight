@@ -313,6 +313,7 @@ export function processBatch(inputs: BatchInput[], toolId: string, operationId: 
     ingredients: itemIngredients,
     history: [...inputs.flatMap((input) => input.history), step],
     sensory: {} as Record<SenseId, number>,
+    platingRole: null,
   }
   item.sensory = calculateSensory(item)
   return item

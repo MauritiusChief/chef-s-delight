@@ -34,8 +34,9 @@
 .simple-list { border-top: 1px solid #ddd; }
 .batch-list { margin-top: 0.75rem; }
 .simple-item { display: flex; justify-content: space-between; gap: 1rem; padding: 0.65rem 0; border-bottom: 1px solid #ddd; overflow-wrap: anywhere; }
-.simple-item > div { min-width: 0; }
+.simple-item > div { flex: 1; min-width: 0; }
 .simple-item small { display: block; margin-top: 0.2rem; color: #666; }
+.plating-role-field { margin-top: 0.55rem; }
 .inline-field { grid-template-columns: auto 7rem; align-items: center; margin-top: 0.5rem; }
 .history { margin: 0.5rem 0 0; padding-left: 1.25rem; font-size: 0.85rem; }
 .history li + li { margin-top: 0.4rem; }

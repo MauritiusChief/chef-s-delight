@@ -1,6 +1,7 @@
 /** 将当前料理状态转换为面向不同模型的中文提示词。 */
 import { cuisineScores, dishSensory, sensorySummary, stepResults, stepTitle } from './cooking'
 import { operations } from './data/operations'
+import { platingRoleLabel } from './data/plating'
 import type { CookingStep, ProcessedItem } from './types'
 
 const shapeOperationIds = new Set([
@@ -59,7 +60,8 @@ export function buildImagePrompt(items: ProcessedItem[]) {
       const state = visualState(ingredientSteps(item, ingredient.name), ingredient.name)
       return `  - ${ingredient.name}\n    物理外形：${state.shape}\n    烹饪程度：${state.doneness}\n    其他操作：${state.other}`
     }).join('\n')
-    return `- ${item.title}\n  组成及可见状态：\n${ingredients}`
+    const role = item.platingRole ? `\n  在料理中作为：${platingRoleLabel(item.platingRole)}` : ''
+    return `- ${item.title}${role}\n  组成及可见状态：\n${ingredients}`
   })
   const cuisines = cuisineLines(items)
 
@@ -74,7 +76,8 @@ export function buildEvaluationPrompt(items: ProcessedItem[]) {
       const results = stepResults(step).map((result) => `       ${result}`).join('\n')
       return `    ${index + 1}. ${stepTitle(step)}\n${results}`
     }).join('\n')
-    return `- ${item.title}\n  组成：${item.ingredients.map((ingredient) => ingredient.name).join('、')}\n  加工顺序：\n${steps || '    无加工记录'}\n  口味与感官：${sensorySummary(item.sensory)}`
+    const role = item.platingRole ? `\n  在料理中作为：${platingRoleLabel(item.platingRole)}` : ''
+    return `- ${item.title}${role}\n  组成：${item.ingredients.map((ingredient) => ingredient.name).join('、')}\n  加工顺序：\n${steps || '    无加工记录'}\n  口味与感官：${sensorySummary(item.sensory)}`
   })
   const cuisines = cuisineLines(items)
 
