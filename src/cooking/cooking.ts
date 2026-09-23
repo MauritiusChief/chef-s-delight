@@ -1,6 +1,6 @@
 /** 烹饪领域规则：处理兼容性、加工事件、感官、菜系和调试明细。 */
-import { ingredients, operations, profileLabels, tools } from './data/catalog'
-import { progressModels } from './data/progress'
+import { ingredients, profileLabels, tools } from './data/catalog'
+import { operations } from './data/operations'
 import {
   ingredientCuisine,
   ingredientSensory,
@@ -56,12 +56,10 @@ export function roleFor(profile: ProfileId) {
 export function resolveDescription(operationId: string, profile: ProfileId, level: number | null) {
   const operation = operations[operationId]
   if (!operation) throw new Error(`未知操作：${operationId}`)
-  if (operation.kind === 'instant') return operation.appearance
+  if (operation.kind === 'instant') return operation.description
 
-  const model = progressModels[operationId]
-  if (!model) throw new Error(`操作缺少进度模型：${operationId}`)
   const safeLevel = Math.max(0, Math.min(4, level ?? 0))
-  return (model.overrides?.[profile] ?? model.default)[safeLevel]
+  return (operation.description.byProfile?.[profile] ?? operation.description.levels)[safeLevel]
 }
 
 /** 取得已处理食材的首个主体大类，供后续兼容性判断使用。 */

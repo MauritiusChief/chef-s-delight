@@ -61,7 +61,7 @@ export interface InstantOperation {
   label: string
   kind: 'instant'
   profiles: ProfileId[]
-  appearance: string
+  description: string
 }
 
 /** 根据 0/4 至 4/4 进度解析结果的操作。 */
@@ -69,16 +69,19 @@ export interface ProgressiveOperation {
   label: string
   kind: 'progressive'
   profiles: ProfileId[]
+  description: ProgressiveDescription
 }
 
 /** 所有操作定义的联合类型。 */
 export type Operation = InstantOperation | ProgressiveOperation
 
-/** 一个渐进式操作的五档描述及按食材大类设置的覆盖。 */
-export interface ProgressModel {
-  axis: string
-  default: [string, string, string, string, string]
-  overrides?: Partial<Record<ProfileId, [string, string, string, string, string]>>
+/** 渐进式操作从 0/4 到 4/4 的五档描述。 */
+export type ProgressLevels = [string, string, string, string, string]
+
+/** 渐进式操作的通用描述及按食材大类设置的覆盖。 */
+export interface ProgressiveDescription {
+  levels: ProgressLevels
+  byProfile?: Partial<Record<ProfileId, ProgressLevels>>
 }
 
 /** 厨具、可执行操作以及其菜系贡献。 */

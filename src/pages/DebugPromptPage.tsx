@@ -14,7 +14,8 @@ import {
   stepResults,
   stepTitle,
 } from '../cooking/cooking'
-import { ingredientGroups, ingredients, operations, profileLabels, tools } from '../cooking/data/catalog'
+import { ingredientGroups, ingredients, profileLabels, tools } from '../cooking/data/catalog'
+import { operations } from '../cooking/data/operations'
 import { senseLabels } from '../cooking/data/sensory'
 import { buildImagePrompt } from '../cooking/prompt'
 import { useCookingStore } from '../cooking/store'
