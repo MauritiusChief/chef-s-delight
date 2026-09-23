@@ -2,15 +2,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  calculateSensoryDetails,
   createProcessedInput,
   createRawInput,
   cuisineDetails,
-  dishSensoryDetails,
   isOperationAvailable,
   isOperationTargetInput,
   itemPrimaryProfile,
-  resolveDescription,
+  processingTagSummary,
+  progressLabel,
   roleFor,
   stepResults,
   stepTitle,
@@ -18,21 +17,12 @@ import {
 import { ingredientGroups, ingredients, profileLabels, tools } from '../cooking/data/catalog'
 import { operations } from '../cooking/data/operations'
 import { platingRoles } from '../cooking/data/plating'
-import { senseLabels } from '../cooking/data/sensory'
 import { buildEvaluationPrompt, buildImagePrompt } from '../cooking/prompt'
 import { useCookingStore } from '../cooking/store'
-import type { PlatingRoleId, ScoreMap, SenseId } from '../cooking/types'
+import type { PlatingRoleId, ScoreMap } from '../cooking/types'
 import '../styles/debug-prompt.css'
 
 const levels = [0, 1, 2, 3, 4]
-
-/** 将非零感官分数转换为适合调试面板阅读的文本。 */
-function formatSensory(scores: ScoreMap<SenseId>, signed = false) {
-  const values = Object.entries(scores)
-    .filter(([, value]) => value !== undefined && value !== 0)
-    .map(([key, value]) => `${senseLabels[key as SenseId]} ${signed && value! > 0 ? '+' : ''}${value}`)
-  return values.join('，') || '无感官数值'
-}
 
 /** 将非零菜系贡献转换为“菜系 +分数”的文本。 */
 function formatCuisine(scores: ScoreMap) {
@@ -42,7 +32,7 @@ function formatCuisine(scores: ScoreMap) {
   return values.join('，') || '无菜系加分'
 }
 
-/** 组合左侧加工操作、中部计算追踪与右侧双模型提示词。 */
+/** 组合左侧加工操作、中部标签与菜系追踪、右侧双模型提示词。 */
 export function DebugPromptPage() {
   const [toolId, setToolId] = useState(tools[0].id)
   const [operationId, setOperationId] = useState(tools[0].operationIds[0])
@@ -87,7 +77,6 @@ export function DebugPromptPage() {
     ? ingredients.find((ingredient) => ingredient.name === ingredientValue.slice(4))
     : undefined
   const selectedProfile = selectedItem ? itemPrimaryProfile(selectedItem) : selectedIngredient?.profile
-  const sensoryCalculation = dishSensoryDetails(items)
   const cuisineCalculation = cuisineDetails(items)
   const imagePrompt = buildImagePrompt(items)
   const evaluationPrompt = buildEvaluationPrompt(items)
@@ -104,7 +93,7 @@ export function DebugPromptPage() {
     setOperationId(nextOperationId)
   }
 
-  /** 将当前选择加入批次；若之后选择渐进 operation，则从 0/4 开始。 */
+  /** 将当前选择加入批次；渐进 operation 默认使用短暂档。 */
   function addInput() {
     if (!ingredientValue) return
     const level = 0
@@ -180,14 +169,14 @@ export function DebugPromptPage() {
                     <small>
                       {roleFor(input.profile)}
                       {operation && ` · ${isOperationTargetInput(operationId, input)
-                        ? resolveDescription(operationId, input.profile, input.level)
+                        ? (operation.kind === 'progressive' ? progressLabel(input.level) : operation.label)
                         : `作为${roleFor(input.profile)}参与处理`}`}
                     </small>
                     {progressive && isOperationTargetInput(operationId, input) && (
                       <label className="inline-field">
                         进度
                         <select value={input.level ?? 0} onChange={(event) => setBatchInputProgress(input.key, Number(event.target.value))}>
-                          {levels.map((level) => <option key={level} value={level}>{level} / 4</option>)}
+                          {levels.map((level) => <option key={level} value={level}>{level} / 4 · {progressLabel(level)}</option>)}
                         </select>
                       </label>
                     )}
@@ -239,50 +228,13 @@ export function DebugPromptPage() {
 
         <div className="debug-middle">
           <section className="debug-panel calculation-panel">
-            <h2>感官计算</h2>
-            {items.length === 0 && <p className="empty">执行加工后显示计算过程</p>}
-            {items.map((item) => {
-              const calculation = calculateSensoryDetails(item)
-              return (
-                <details key={item.id} open>
-                  <summary>{item.title}</summary>
-                  <ul className="calculation-list">
-                    {calculation.contributions.map((contribution, index) => (
-                      <li key={`${contribution.source}-${index}`}>
-                        <span>{contribution.source}</span>
-                        <code>{formatSensory(contribution.scores, true)}</code>
-                      </li>
-                    ))}
-                  </ul>
-                  <p><strong>限制前：</strong>{formatSensory(calculation.beforeClamp)}</p>
-                  <p><strong>当前值：</strong>{formatSensory(calculation.result)}</p>
-                </details>
-              )
-            })}
+            <h2>加工标签</h2>
+            {items.length === 0 && <p className="empty">执行加工后显示产物标签</p>}
+            {items.map((item) => (
+              <p key={item.id}><strong>{item.title}：</strong>{processingTagSummary(item)}</p>
+            ))}
 
-            {items.length > 0 && (
-              <div className="overall-calculation">
-                <h3>整菜汇总</h3>
-                <ul className="calculation-list">
-                  {sensoryCalculation.itemContributions.map((item) => (
-                    <li key={item.itemId}><span>{item.title}</span><code>{formatSensory(item.scores)}</code></li>
-                  ))}
-                </ul>
-                <p><strong>累加：</strong>{formatSensory(sensoryCalculation.summed)}</p>
-                <p><strong>限制到 0-10：</strong>{formatSensory(sensoryCalculation.clamped)}</p>
-                {sensoryCalculation.maskAdjustments.map((adjustment) => (
-                  <p key={adjustment.target}>
-                    <strong>{senseLabels[adjustment.target]}遮盖：</strong>
-                    floor({Object.entries(adjustment.weights)
-                      .map(([sense, weight]) => `${senseLabels[sense as SenseId]} × ${weight}`)
-                      .join(' + ')}) = {adjustment.amount}
-                  </p>
-                ))}
-                <p><strong>最终：</strong>{formatSensory(sensoryCalculation.result)}</p>
-              </div>
-            )}
-
-            <h2 className="subheading">菜系计算</h2>
+            <h2 className="subheading">菜系计算（唯一食材与厨具）</h2>
             {items.length === 0 && <p className="empty">尚无菜系贡献</p>}
             {cuisineCalculation.items.map((item) => (
               <details key={item.itemId} open>
