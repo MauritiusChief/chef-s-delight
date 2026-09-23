@@ -2,6 +2,13 @@
 import { ingredients, profileLabels, tools } from './data/catalog'
 import { operations } from './data/operations'
 import {
+  batchReactions,
+  dishMaskRules,
+  ingredientReactions,
+  profileReactions,
+  traitReactions,
+} from './data/reactions'
+import {
   ingredientCuisine,
   ingredientSensory,
   ingredientTraits,
@@ -21,11 +28,9 @@ import type {
   ProfileId,
   ScoreMap,
   SensoryCalculation,
+  SensoryEffectCurves,
   SenseId,
 } from './types'
-
-const dryHeat = new Set(['pan_fried', 'stir_fried', 'roasted', 'baked', 'grilled', 'deep_fried', 'toasted', 'caramelized', 'griddled'])
-const wetHeat = new Set(['boiled', 'simmered', 'braised', 'poached', 'steamed'])
 
 const roleLabels: Partial<Record<ProfileId, string>> = {
   fat: '烹饪油脂',
@@ -45,6 +50,13 @@ function addMap(target: ScoreMap, source: ScoreMap | undefined, multiplier = 1) 
   Object.entries(source ?? {}).forEach(([key, value]) => {
     if (value !== undefined) target[key] = (target[key] ?? 0) + value * multiplier
   })
+}
+
+/** 读取某组五档效果曲线在当前加工进度下的感官变化。 */
+function effectsAtLevel(effects: SensoryEffectCurves, level: number): ScoreMap<SenseId> {
+  return Object.fromEntries(
+    Object.entries(effects).map(([sense, values]) => [sense, values?.[level] ?? 0]),
+  ) as ScoreMap<SenseId>
 }
 
 /** 根据食材大类返回其在加工批次中的作用。 */
@@ -148,51 +160,52 @@ export function calculateSensoryDetails(
 
   item.history.forEach((step, stepIndex) => {
     const active = item.ingredients.filter((ingredient) => step.activeNames.includes(ingredient.name))
-    if (operations[step.operationId]?.kind !== 'progressive') return
+    const operation = operations[step.operationId]
+    if (operation?.kind !== 'progressive') return
 
     active.forEach((ingredient) => {
       const level = step.levelsByName[ingredient.name] ?? 0
       const traits = ingredientFeatureScores(ingredient)
-      const adjustment: ScoreMap<SenseId> = {}
+      const source = `第 ${stepIndex + 1} 步 ${stepTitle(step)} · ${ingredient.name} ${level}/4`
 
-      if (['red_meat', 'poultry', 'fish', 'shellfish'].includes(ingredient.profile)) {
-        adjustment.bloody = -[0, 1, 4, 5, 5][level]
-      }
-      if (wetHeat.has(step.operationId)) {
-        adjustment.moist = (adjustment.moist ?? 0) + [0, 1, 2, 3, 3][level]
-        if (level >= 3) adjustment.dry = (adjustment.dry ?? 0) + level - 3
-      }
-      if (dryHeat.has(step.operationId)) {
-        adjustment.moist = (adjustment.moist ?? 0) - [0, 0, 1, 2, 3][level]
-        adjustment.dry = (adjustment.dry ?? 0) + [0, 0, 0, 1, 3][level]
-        adjustment.roasted = (adjustment.roasted ?? 0) + [0, 1, 2, 3, 4][level]
-      }
-      if (step.operationId === 'grilled') adjustment.smoky = (adjustment.smoky ?? 0) + [0, 1, 2, 3, 4][level]
-      if (step.operationId === 'deep_fried') adjustment.crisp = (adjustment.crisp ?? 0) + [0, 1, 3, 4, 5][level]
-      if (['baked', 'roasted', 'pan_fried', 'griddled'].includes(step.operationId) && level >= 2) {
-        adjustment.crisp = (adjustment.crisp ?? 0) + level - 1
-      }
-      if ((traits.sugar ?? 0) > 0 && dryHeat.has(step.operationId) && level >= 2) {
-        adjustment.sweet = (adjustment.sweet ?? 0) + 1
-        adjustment.roasted = (adjustment.roasted ?? 0) + Math.min(2, level - 1)
-      }
-      if (['大蒜', '姜'].includes(ingredient.name) && level >= 1) {
-        adjustment.pungent = (adjustment.pungent ?? 0) - Math.min(2, level)
-        adjustment.aromatic = (adjustment.aromatic ?? 0) + Math.min(3, level)
-      }
-      addContribution(`第 ${stepIndex + 1} 步 ${stepTitle(step)} · ${ingredient.name} ${level}/4`, adjustment)
+      addContribution(`${source} · 操作效果`, effectsAtLevel(operation.effects, level))
+
+      profileReactions
+        .filter((reaction) => reaction.profiles.includes(ingredient.profile))
+        .forEach((reaction) => {
+          addContribution(`${source} · ${reaction.label}`, effectsAtLevel(reaction.effects, level))
+        })
+
+      ingredientReactions
+        .filter((reaction) => reaction.ingredients.includes(ingredient.name))
+        .forEach((reaction) => {
+          addContribution(`${source} · ${reaction.label}`, effectsAtLevel(reaction.effects, level))
+        })
+
+      traitReactions
+        .filter((reaction) => reaction.operationIds.includes(step.operationId) && (traits[reaction.trait] ?? 0) > 0)
+        .forEach((reaction) => {
+          addContribution(`${source} · ${reaction.label}`, effectsAtLevel(reaction.effects, level))
+        })
     })
 
-    const hasFat = active.some((ingredient) => (ingredientFeatureScores(ingredient).fat ?? 0) > 0)
-    const proteinHeat = Math.max(0, ...active
-      .filter((ingredient) => (ingredientFeatureScores(ingredient).protein ?? 0) > 0)
-      .map((ingredient) => step.levelsByName[ingredient.name] ?? 0))
-    if (hasFat && dryHeat.has(step.operationId) && proteinHeat >= 2) {
-      addContribution(
-        `第 ${stepIndex + 1} 步 ${stepTitle(step)} · 油脂与蛋白质批次反应`,
-        { roasted: Math.min(3, proteinHeat - 1) },
-      )
-    }
+    batchReactions
+      .filter((reaction) => reaction.operationIds.includes(step.operationId))
+      .forEach((reaction) => {
+        const hasRequiredTraits = reaction.requiredTraits.every((trait) =>
+          active.some((ingredient) => (ingredientFeatureScores(ingredient)[trait] ?? 0) > 0),
+        )
+        const reactionLevel = Math.max(0, ...active
+          .filter((ingredient) => (ingredientFeatureScores(ingredient)[reaction.levelTrait] ?? 0) > 0)
+          .map((ingredient) => step.levelsByName[ingredient.name] ?? 0))
+
+        if (hasRequiredTraits && reactionLevel >= reaction.minimumLevel) {
+          addContribution(
+            `第 ${stepIndex + 1} 步 ${stepTitle(step)} · ${reaction.label}`,
+            { [reaction.sense]: Math.min(reaction.maximumBonus, reactionLevel - reaction.levelOffset) },
+          )
+        }
+      })
   })
 
   const totals: ScoreMap<SenseId> = {}
@@ -248,13 +261,20 @@ export function dishSensoryDetails(items: ProcessedItem[]): DishSensoryCalculati
   items.forEach((item) => addMap(total, item.sensory))
   const summed = Object.fromEntries(senseIds.map((sense) => [sense, total[sense] ?? 0])) as Record<SenseId, number>
   const clamped = Object.fromEntries(senseIds.map((sense) => [sense, clamp(summed[sense])])) as Record<SenseId, number>
-  const bloodyMask = Math.floor(clamped.pungent * 0.3 + clamped.spicy * 0.2 + clamped.sour * 0.4 + clamped.aromatic * 0.2)
-  const result = { ...clamped, bloody: clamp(clamped.bloody - bloodyMask) }
+  const result = { ...clamped }
+  const maskAdjustments = dishMaskRules.map((rule) => {
+    const amount = Math.floor(Object.entries(rule.weights).reduce(
+      (totalMask, [sense, weight]) => totalMask + clamped[sense as SenseId] * (weight ?? 0),
+      0,
+    ))
+    result[rule.target] = clamp(result[rule.target] - amount)
+    return { target: rule.target, amount, weights: rule.weights }
+  })
   return {
     itemContributions: items.map((item) => ({ itemId: item.id, title: item.title, scores: item.sensory })),
     summed,
     clamped,
-    bloodyMask,
+    maskAdjustments,
     result,
   }
 }

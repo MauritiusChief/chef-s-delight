@@ -64,12 +64,13 @@ export interface InstantOperation {
   description: string
 }
 
-/** 根据 0/4 至 4/4 进度解析结果的操作。 */
+/** 根据 0/4 至 4/4 进度解析外观和感官变化的操作。 */
 export interface ProgressiveOperation {
   label: string
   kind: 'progressive'
   profiles: ProfileId[]
   description: ProgressiveDescription
+  effects: SensoryEffectCurves
 }
 
 /** 所有操作定义的联合类型。 */
@@ -78,10 +79,56 @@ export type Operation = InstantOperation | ProgressiveOperation
 /** 渐进式操作从 0/4 到 4/4 的五档描述。 */
 export type ProgressLevels = [string, string, string, string, string]
 
+/** 一个数值属性从 0/4 到 4/4 的五档变化量。 */
+export type ProgressValues = [number, number, number, number, number]
+
+/** 操作或反应对各感官维度造成的五档数值变化。 */
+export type SensoryEffectCurves = Partial<Record<SenseId, ProgressValues>>
+
 /** 渐进式操作的通用描述及按食材大类设置的覆盖。 */
 export interface ProgressiveDescription {
   levels: ProgressLevels
   byProfile?: Partial<Record<ProfileId, ProgressLevels>>
+}
+
+/** 按食材大类触发的渐进式加工反应。 */
+export interface ProfileReaction {
+  label: string
+  profiles: ProfileId[]
+  effects: SensoryEffectCurves
+}
+
+/** 按具体食材名称触发的渐进式加工反应。 */
+export interface IngredientReaction {
+  label: string
+  ingredients: string[]
+  effects: SensoryEffectCurves
+}
+
+/** 在指定操作中由食材物理特征触发的反应。 */
+export interface TraitReaction {
+  label: string
+  trait: TraitId
+  operationIds: string[]
+  effects: SensoryEffectCurves
+}
+
+/** 由同一批次中的多种物理特征共同触发的反应。 */
+export interface BatchReaction {
+  label: string
+  operationIds: string[]
+  requiredTraits: TraitId[]
+  levelTrait: TraitId
+  minimumLevel: number
+  sense: SenseId
+  levelOffset: number
+  maximumBonus: number
+}
+
+/** 整菜层面使用其他感官维度遮盖目标维度的权重规则。 */
+export interface SensoryMaskRule {
+  target: SenseId
+  weights: Partial<Record<SenseId, number>>
 }
 
 /** 厨具、可执行操作以及其菜系贡献。 */
@@ -150,7 +197,11 @@ export interface DishSensoryCalculation {
   }>
   summed: Record<SenseId, number>
   clamped: Record<SenseId, number>
-  bloodyMask: number
+  maskAdjustments: Array<{
+    target: SenseId
+    amount: number
+    weights: Partial<Record<SenseId, number>>
+  }>
   result: Record<SenseId, number>
 }
 

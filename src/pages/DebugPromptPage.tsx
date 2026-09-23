@@ -253,10 +253,14 @@ export function DebugPromptPage() {
                 </ul>
                 <p><strong>累加：</strong>{formatSensory(sensoryCalculation.summed)}</p>
                 <p><strong>限制到 0-10：</strong>{formatSensory(sensoryCalculation.clamped)}</p>
-                <p>
-                  <strong>血味遮盖：</strong>
-                  floor(辛味 × 0.3 + 辣味 × 0.2 + 酸味 × 0.4 + 芳香 × 0.2) = {sensoryCalculation.bloodyMask}
-                </p>
+                {sensoryCalculation.maskAdjustments.map((adjustment) => (
+                  <p key={adjustment.target}>
+                    <strong>{senseLabels[adjustment.target]}遮盖：</strong>
+                    floor({Object.entries(adjustment.weights)
+                      .map(([sense, weight]) => `${senseLabels[sense as SenseId]} × ${weight}`)
+                      .join(' + ')}) = {adjustment.amount}
+                  </p>
+                ))}
                 <p><strong>最终：</strong>{formatSensory(sensoryCalculation.result)}</p>
               </div>
             )}
